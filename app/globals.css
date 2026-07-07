@@ -1,0 +1,480 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafafa;
+  --foreground: #111111;
+  --primary: #111111;
+  --accent: #4b4b4b;
+  --surface: #ffffff;
+  --surface-muted: #f3f3f3;
+  --border: #e5e5e5;
+  --muted: #737373;
+  --page-gutter: clamp(1.75rem, 4.5vw, 3.75rem);
+  --page-gutter-wide: clamp(2rem, 6vw, 5rem);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body,
+p,
+span {
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1 span,
+h2 span,
+h3 span {
+  font-family: inherit;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  position: relative;
+  min-height: 100%;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.95) 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(243, 243, 243, 0.6) 0%, transparent 45%);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* Subtle financial data-grid background */
+.data-grid-background {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.data-grid-lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(20, 17, 15, 0.028) 0 1px,
+      transparent 1px 40px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(20, 17, 15, 0.024) 0 1px,
+      transparent 1px 40px
+    );
+  opacity: 0.32;
+}
+
+.data-grid-nodes {
+  position: absolute;
+  inset: 0;
+}
+
+.data-node {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(75, 75, 75, 0.28);
+  transform: translate(-50%, -50%);
+  opacity: 0.12;
+  animation: data-node-flicker 4.8s ease-in-out infinite;
+}
+
+.data-node:nth-child(2n) {
+  animation-duration: 6.2s;
+  animation-delay: -1.4s;
+}
+
+.data-node:nth-child(3n) {
+  animation-duration: 5.4s;
+  animation-delay: -2.1s;
+}
+
+.data-node:nth-child(4n) {
+  animation-duration: 7.1s;
+  animation-delay: -0.9s;
+}
+
+.data-node:nth-child(5n) {
+  animation-duration: 6.7s;
+  animation-delay: -3.2s;
+}
+
+@keyframes data-node-flicker {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  18% {
+    opacity: 0.22;
+  }
+  33% {
+    opacity: 0.1;
+  }
+  47% {
+    opacity: 0.3;
+  }
+  64% {
+    opacity: 0.12;
+  }
+  81% {
+    opacity: 0.24;
+  }
+}
+
+/* --- NextWall animations (minimal, noticeable) --- */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes drift-slow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(40px, -30px) scale(1.08);
+  }
+  66% {
+    transform: translate(-30px, 20px) scale(0.92);
+  }
+}
+
+@keyframes drift-slow-reverse {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-35px, 25px) scale(0.94);
+  }
+  66% {
+    transform: translate(25px, -35px) scale(1.06);
+  }
+}
+
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  to {
+    transform: translateX(220%) skewX(-12deg);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
+
+.animate-fade-down {
+  animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
+
+.animate-float-soft {
+  animation: float-soft 4s ease-in-out infinite;
+}
+
+@keyframes onboarding-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-step {
+  animation: onboarding-step-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-drift-slow {
+  animation: drift-slow 18s ease-in-out infinite;
+}
+
+.animate-drift-slow-reverse {
+  animation: drift-slow-reverse 22s ease-in-out infinite;
+}
+
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-350 {
+  animation-delay: 350ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+.delay-700 {
+  animation-delay: 700ms;
+}
+
+@keyframes scroll-line {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(1);
+    transform-origin: top;
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+    opacity: 0;
+  }
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker {
+  animation: ticker-scroll 22s linear infinite;
+}
+
+.animate-scroll-line {
+  animation: scroll-line 2s ease-in-out infinite;
+}
+
+.group:hover .logo-shimmer-bar {
+  animation: shimmer-sweep 0.75s ease-out;
+}
+
+/* Intro animation (first visit only) */
+.intro-logo {
+  opacity: 0;
+}
+
+.intro-logo-visible {
+  animation: intro-fade-in 0.8s ease forwards;
+}
+
+.intro-logo-hidden {
+  animation: intro-fade-out 0.6s ease forwards;
+}
+
+.landing-reveal {
+  opacity: 0;
+}
+
+.landing-reveal-visible {
+  animation: landing-fade-in 0.8s ease forwards;
+}
+
+@keyframes intro-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes landing-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.landing-marquee-track {
+  animation: landing-marquee 38s linear infinite;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-glass {
+  background: rgba(250, 250, 250, 0.82);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .landing-marquee-track {
+    animation: none;
+  }
+
+  .scroll-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .animate-fade-up,
+  .animate-fade-down {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-float-soft,
+  .animate-glow-pulse,
+  .animate-drift-slow,
+  .animate-drift-slow-reverse,
+  .animate-ticker,
+  .animate-scroll-line {
+    animation: none;
+  }
+
+  .group:hover .logo-shimmer-bar {
+    animation: none;
+  }
+
+  .intro-logo-visible,
+  .intro-logo-hidden,
+  .landing-reveal-visible {
+    animation: none;
+    opacity: 1;
+  }
+
+  .data-node {
+    animation: none;
+    opacity: 0.14;
+  }
+}
