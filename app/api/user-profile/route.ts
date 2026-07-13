@@ -149,9 +149,12 @@ export async function POST(request: Request) {
       .single());
   }
 
-  if (error) {
-    console.error("[user-profile] POST error:", error.message, error.code);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !data) {
+    console.error("[user-profile] POST error:", error?.message, error?.code);
+    return NextResponse.json(
+      { error: error?.message ?? "Profile save failed" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ success: true, profileId: data.id });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { displayPath } from "@/lib/site";
 
 const WHEEL_GRAY = "#4B4B4B";
