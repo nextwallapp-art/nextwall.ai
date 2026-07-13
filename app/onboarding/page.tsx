@@ -1,6 +1,7 @@
 "use client";
 
 import NextWallLogo from "@/components/NextWallLogo";
+import { clearOnboardingBannerDismiss } from "@/lib/onboardingBanner";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -75,6 +76,73 @@ const EMPTY_CUSTOM: CustomAssets = {
   metals: "",
 };
 
+type StoredProfile = {
+  experience_level?: string | null;
+  selected_assets?: Partial<SelectedAssets> | null;
+  custom_assets?: string | Record<string, string> | null;
+  free_text?: string | null;
+};
+
+function parseCustomAssets(
+  value: StoredProfile["custom_assets"],
+): CustomAssets {
+  if (!value) return { ...EMPTY_CUSTOM };
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as Partial<CustomAssets>;
+      return { ...EMPTY_CUSTOM, ...parsed };
+    } catch {
+      return { ...EMPTY_CUSTOM };
+    }
+  }
+
+  return { ...EMPTY_CUSTOM, ...value };
+}
+
+function deriveActiveCategories(
+  assets: SelectedAssets,
+  custom: CustomAssets,
+): Set<CategoryKey> {
+  const active = new Set<CategoryKey>();
+  for (const key of Object.keys(EMPTY_ASSETS) as CategoryKey[]) {
+    if (assets[key].length > 0 || custom[key].trim().length > 0) {
+      active.add(key);
+    }
+  }
+  return active;
+}
+
+function hydrateProfile(
+  profile: StoredProfile,
+  setExperienceLevel: (level: ExperienceLevel) => void,
+  setSelectedAssets: (assets: SelectedAssets) => void,
+  setCustomAssets: (custom: CustomAssets) => void,
+  setFreeText: (text: string) => void,
+  setActiveCategories: (categories: Set<CategoryKey>) => void,
+) {
+  if (
+    profile.experience_level === "beginner" ||
+    profile.experience_level === "intermediate" ||
+    profile.experience_level === "advanced"
+  ) {
+    setExperienceLevel(profile.experience_level);
+  }
+
+  const assets: SelectedAssets = {
+    crypto: profile.selected_assets?.crypto ?? [],
+    stocks: profile.selected_assets?.stocks ?? [],
+    etfs: profile.selected_assets?.etfs ?? [],
+    metals: profile.selected_assets?.metals ?? [],
+  };
+  const custom = parseCustomAssets(profile.custom_assets);
+
+  setSelectedAssets(assets);
+  setCustomAssets(custom);
+  setFreeText(profile.free_text ?? "");
+  setActiveCategories(deriveActiveCategories(assets, custom));
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -93,6 +161,7 @@ export default function OnboardingPage() {
     useState<CustomAssets>(EMPTY_CUSTOM);
   const [freeText, setFreeText] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     async function check() {
@@ -116,16 +185,23 @@ export default function OnboardingPage() {
         });
         const json = (await res.json()) as {
           hasProfile?: boolean;
+          profile?: StoredProfile | null;
           error?: string;
           hint?: string;
         };
 
         console.log("[onboarding] Profile check response:", json);
 
-        if (json.hasProfile) {
-          console.log("[onboarding] Profile exists → /dashboard");
-          router.replace("/dashboard");
-          return;
+        if (json.hasProfile && json.profile) {
+          setIsUpdating(true);
+          hydrateProfile(
+            json.profile,
+            setExperienceLevel,
+            setSelectedAssets,
+            setCustomAssets,
+            setFreeText,
+            setActiveCategories,
+          );
         }
 
         if (json.error) {
@@ -227,6 +303,7 @@ export default function OnboardingPage() {
       }
 
       console.log("[onboarding] Profile saved, id:", json.profileId, "→ /dashboard");
+      clearOnboardingBannerDismiss(userId);
       router.replace("/dashboard");
     } catch (err) {
       const message =
@@ -460,7 +537,11 @@ export default function OnboardingPage() {
                 disabled={saving}
                 className="bg-[#111111] px-8 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-40"
               >
-                {saving ? "Guardando…" : "Empezar a invertir con contexto →"}
+                {saving
+                  ? "Guardando…"
+                  : isUpdating
+                    ? "Guardar cambios →"
+                    : "Empezar a invertir con contexto →"}
               </button>
             )}
           </div>

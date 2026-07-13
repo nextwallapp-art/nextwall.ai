@@ -245,6 +245,40 @@ body::before {
   opacity: 0;
 }
 
+@keyframes blink-cursor {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes analyzing-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  animation: blink-cursor 1s step-end infinite;
+}
+
+.animate-analyzing {
+  animation: analyzing-pulse 2s ease-in-out infinite;
+}
+
 .animate-fade-down {
   animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   opacity: 0;

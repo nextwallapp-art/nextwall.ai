@@ -69,12 +69,12 @@ export default function HomePage() {
                     </svg>
                   </Link>
 
-                  <a
-                    href="#story"
+                  <Link
+                    href="/demo"
                     className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-7 py-3.5 text-sm font-medium text-[var(--foreground)] transition-colors duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)] md:py-4 md:text-base"
                   >
                     {t.hero.ctaSecondary}
-                  </a>
+                  </Link>
                 </ScrollReveal>
 
                 <ScrollReveal delayMs={240}>

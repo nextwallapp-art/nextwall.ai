@@ -1,6 +1,6 @@
 "use client";
 
-import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { displayPath } from "@/lib/site";
 
 const WHEEL_GRAY = "#4B4B4B";
 const COUNT = 6;
@@ -38,7 +38,7 @@ export default function LandingHeroVisual() {
           <span className="h-2.5 w-2.5 rounded-full bg-[#E5E5E5]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#E5E5E5]" />
           <span className="ml-2 text-[0.65rem] font-medium tracking-wide text-[#999999]">
-            nextwall.app/dashboard
+            {displayPath("dashboard")}
           </span>
         </div>
 

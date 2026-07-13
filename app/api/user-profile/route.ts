@@ -1,23 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getSupabaseConfig() {
+const PROFILE_SELECT =
+  "id, user_id, experience_level, selected_assets, custom_assets, free_text, last_onboarding_date, created_at";
+
+const PROFILE_SELECT_BASE =
+  "id, user_id, experience_level, selected_assets, custom_assets, free_text, created_at";
+
+function isMissingColumn(error: { message?: string }, column: string): boolean {
+  return error.message?.includes(column) ?? false;
+}
+
+async function authenticate(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  return { url, anonKey };
-}
 
-function authClient(url: string, anonKey: string, token: string) {
-  return createClient(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-}
-
-async function getAuthenticatedUser(request: Request) {
-  const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) {
     return {
       error: NextResponse.json(
@@ -27,12 +28,24 @@ async function getAuthenticatedUser(request: Request) {
     };
   }
 
+  const admin = getSupabaseAdmin();
+  if (!admin) {
+    return {
+      error: NextResponse.json(
+        {
+          error: "Falta SUPABASE_SERVICE_ROLE_KEY en .env.local",
+          hint:
+            "Supabase → Project Settings → API → service_role → copia la clave en .env.local",
+        },
+        { status: 500 },
+      ),
+    };
+  }
+
   const token = request.headers
     .get("Authorization")
     ?.replace("Bearer ", "")
     .trim();
-
-  console.log("[user-profile] Auth token present:", !!token);
 
   if (!token) {
     return {
@@ -47,72 +60,50 @@ async function getAuthenticatedUser(request: Request) {
   } = await supabase.auth.getUser(token);
 
   if (authError || !user) {
-    console.error(
-      "[user-profile] Auth failed:",
-      authError?.message ?? "no user",
-    );
     return {
       error: NextResponse.json({ error: "No autorizado" }, { status: 401 }),
     };
   }
 
-  console.log("[user-profile] Authenticated user:", user.id);
-  return { url, anonKey, token, userId: user.id };
+  return { userId: user.id, admin };
 }
 
 export async function GET(request: Request) {
-  console.log("[user-profile] GET — checking profile");
+  const auth = await authenticate(request);
+  if ("error" in auth) return auth.error;
 
-  const auth = await getAuthenticatedUser(request);
-  if ("error" in auth && auth.error) return auth.error;
+  const { userId, admin } = auth;
 
-  const { url, anonKey, token, userId } = auth as {
-    url: string;
-    anonKey: string;
-    token: string;
-    userId: string;
-  };
-
-  const client = authClient(url, anonKey, token);
-  const { data, error } = await client
+  let { data, error } = await admin
     .from("user_profiles")
-    .select(
-      "id, user_id, experience_level, selected_assets, custom_assets, free_text, created_at",
-    )
+    .select(PROFILE_SELECT)
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (error && isMissingColumn(error, "last_onboarding_date")) {
+    ({ data, error } = await admin
+      .from("user_profiles")
+      .select(PROFILE_SELECT_BASE)
+      .eq("user_id", userId)
+      .maybeSingle());
+  }
+
   if (error) {
-    console.error("[user-profile] GET error:", error.message, error.code);
+    console.error("[user-profile] GET error:", error.message);
     return NextResponse.json(
-      {
-        hasProfile: false,
-        error: error.message,
-        hint:
-          error.code === "42P01"
-            ? "La tabla user_profiles no existe. Ejecuta supabase/user_profiles.sql en Supabase."
-            : undefined,
-      },
+      { hasProfile: false, error: error.message },
       { status: 200 },
     );
   }
 
-  console.log("[user-profile] GET result:", data ? `found id=${data.id}` : "no profile");
   return NextResponse.json({ hasProfile: !!data, profile: data ?? null });
 }
 
 export async function POST(request: Request) {
-  console.log("[user-profile] POST — saving profile");
+  const auth = await authenticate(request);
+  if ("error" in auth) return auth.error;
 
-  const auth = await getAuthenticatedUser(request);
-  if ("error" in auth && auth.error) return auth.error;
-
-  const { url, anonKey, token, userId } = auth as {
-    url: string;
-    anonKey: string;
-    token: string;
-    userId: string;
-  };
+  const { userId, admin } = auth;
 
   let body: {
     experience_level?: string | null;
@@ -127,14 +118,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
-  console.log("[user-profile] POST payload:", {
-    userId,
-    experience_level: body.experience_level,
-    selected_assets: body.selected_assets,
-    custom_assets: body.custom_assets,
-    has_free_text: !!body.free_text,
-  });
-
   const customAssetsValue =
     body.custom_assets == null
       ? null
@@ -142,62 +125,34 @@ export async function POST(request: Request) {
         ? body.custom_assets
         : JSON.stringify(body.custom_assets);
 
-  const client = authClient(url, anonKey, token);
+  const record = {
+    user_id: userId,
+    experience_level: body.experience_level ?? null,
+    selected_assets: body.selected_assets ?? null,
+    custom_assets: customAssetsValue,
+    free_text: body.free_text ?? null,
+    last_onboarding_date: new Date().toISOString(),
+  };
 
-  const { data: existing, error: existingError } = await client
+  let { data, error } = await admin
     .from("user_profiles")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (existingError) {
-    console.error("[user-profile] POST existing check error:", existingError.message);
-    return NextResponse.json(
-      {
-        error: existingError.message,
-        hint:
-          existingError.code === "42P01"
-            ? "La tabla user_profiles no existe. Ejecuta supabase/user_profiles.sql en Supabase."
-            : undefined,
-      },
-      { status: 500 },
-    );
-  }
-
-  if (existing) {
-    console.log("[user-profile] POST — profile already exists, id=", existing.id);
-    return NextResponse.json({ success: true, profileId: existing.id });
-  }
-
-  const { data: inserted, error: insertError } = await client
-    .from("user_profiles")
-    .insert({
-      user_id: userId,
-      experience_level: body.experience_level ?? null,
-      selected_assets: body.selected_assets ?? null,
-      custom_assets: customAssetsValue,
-      free_text: body.free_text ?? null,
-    })
+    .upsert(record, { onConflict: "user_id" })
     .select("id")
     .single();
 
-  if (insertError) {
-    console.error("[user-profile] POST insert error:", insertError.message, insertError.code);
-    return NextResponse.json(
-      {
-        error: insertError.message,
-        code: insertError.code,
-        hint:
-          insertError.code === "42P01"
-            ? "La tabla user_profiles no existe. Ejecuta supabase/user_profiles.sql en Supabase."
-            : insertError.code === "42501"
-              ? "Permiso denegado. Verifica las políticas RLS en user_profiles."
-              : undefined,
-      },
-      { status: 500 },
-    );
+  if (error && isMissingColumn(error, "last_onboarding_date")) {
+    const { last_onboarding_date: _dropped, ...withoutDate } = record;
+    ({ data, error } = await admin
+      .from("user_profiles")
+      .upsert(withoutDate, { onConflict: "user_id" })
+      .select("id")
+      .single());
   }
 
-  console.log("[user-profile] POST success — inserted id=", inserted.id);
-  return NextResponse.json({ success: true, profileId: inserted.id });
+  if (error) {
+    console.error("[user-profile] POST error:", error.message, error.code);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, profileId: data.id });
 }

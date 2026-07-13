@@ -1,6 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { getStripe } from "@/lib/stripe";
+import {
+  hasActiveSubscription,
+  resolveStripeCustomerId,
+} from "@/lib/subscription";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +37,23 @@ type Macro = {
   date: string | null;
 };
 
+type FredObservation = {
+  value: number;
+  date: string;
+};
+
+type FredHistoricalContext = {
+  fedFunds: {
+    current: FredObservation | null;
+    sixMonthsAgo: FredObservation | null;
+    oneYearAgo: FredObservation | null;
+  };
+  cpi: {
+    current: FredObservation | null;
+    sixMonthsAgo: FredObservation | null;
+  };
+};
+
 type UserProfile = {
   experience_level: string | null;
   selected_assets: {
@@ -39,6 +63,26 @@ type UserProfile = {
     metals?: string[];
   } | null;
   free_text: string | null;
+};
+
+type StructuredAnalysis = {
+  headline: string;
+  asset_insights: {
+    symbol: string;
+    name: string;
+    micro_insight: string;
+  }[];
+  analysis: {
+    paragraph_1: string;
+    paragraph_2: string;
+    paragraph_3: string;
+  };
+  terms: {
+    word: string;
+    beginner: string;
+    intermediate: string;
+    advanced: string;
+  }[];
 };
 
 // ── Default asset lists (used when no profile or empty selection) ─────────────
@@ -168,16 +212,41 @@ const MACRO_SERIES: { id: string; name: string; unit: string }[] = [
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
-async function fetchStocks(
-  token: string,
+type SourceFetchResult<T> = {
+  data: T;
+  failed: boolean;
+};
+
+function emptyStock(
   stocks: { symbol: string; name: string }[],
-): Promise<Stock[]> {
-  if (stocks.length === 0) return [];
+): Stock[] {
+  return stocks.map((s) => ({
+    ...s,
+    price: null,
+    change: null,
+    changePercent: null,
+  }));
+}
+
+async function fetchStocks(
+  token: string | undefined,
+  stocks: { symbol: string; name: string }[],
+): Promise<SourceFetchResult<Stock[]>> {
+  if (stocks.length === 0) {
+    return { data: [], failed: false };
+  }
+
+  if (!token) {
+    console.warn("[market-analysis] FINNHUB_API_KEY missing");
+    return { data: emptyStock(stocks), failed: true };
+  }
+
   console.log(
     "[market-analysis] fetchStocks →",
     stocks.map((s) => s.symbol).join(", "),
   );
-  return Promise.all(
+
+  const data = await Promise.all(
     stocks.map(async ({ symbol, name }) => {
       try {
         const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
@@ -186,25 +255,24 @@ async function fetchStocks(
           console.error(`[market-analysis] Finnhub ${symbol} HTTP ${res.status}`);
           return { symbol, name, price: null, change: null, changePercent: null };
         }
-        const data = (await res.json()) as {
+        const quote = (await res.json()) as {
           c?: number;
           d?: number;
           dp?: number;
           pc?: number;
         };
-        console.log(`[market-analysis] Finnhub ${symbol}:`, JSON.stringify(data));
         const price =
-          typeof data.c === "number" && data.c !== 0
-            ? data.c
-            : typeof data.pc === "number" && data.pc !== 0
-              ? data.pc
+          typeof quote.c === "number" && quote.c !== 0
+            ? quote.c
+            : typeof quote.pc === "number" && quote.pc !== 0
+              ? quote.pc
               : null;
         return {
           symbol,
           name,
           price,
-          change: typeof data.d === "number" ? data.d : null,
-          changePercent: typeof data.dp === "number" ? data.dp : null,
+          change: typeof quote.d === "number" ? quote.d : null,
+          changePercent: typeof quote.dp === "number" ? quote.dp : null,
         };
       } catch (err) {
         console.error(`[market-analysis] Finnhub ${symbol} error:`, err);
@@ -212,13 +280,26 @@ async function fetchStocks(
       }
     }),
   );
+
+  const failed = data.every((stock) => stock.price === null);
+  return { data, failed };
 }
 
 async function fetchCrypto(
   apiKey: string | undefined,
   cryptoList: { id: string; symbol: string; name: string }[],
-): Promise<Crypto[]> {
-  if (cryptoList.length === 0) return [];
+): Promise<SourceFetchResult<Crypto[]>> {
+  if (cryptoList.length === 0) {
+    return { data: [], failed: false };
+  }
+
+  const empty = cryptoList.map((c) => ({
+    symbol: c.symbol,
+    name: c.name,
+    price: null,
+    change24h: null,
+  }));
+
   const ids = cryptoList.map((c) => c.id).join(",");
   console.log("[market-analysis] fetchCrypto →", ids, "| hasKey:", !!apiKey);
 
@@ -234,22 +315,16 @@ async function fetchCrypto(
         res.status,
         await res.text().catch(() => ""),
       );
-      return cryptoList.map((c) => ({
-        symbol: c.symbol,
-        name: c.name,
-        price: null,
-        change24h: null,
-      }));
+      return { data: empty, failed: true };
     }
 
-    const data = (await res.json()) as Record<
+    const payload = (await res.json()) as Record<
       string,
       { usd?: number; usd_24h_change?: number }
     >;
-    console.log("[market-analysis] CoinGecko raw:", JSON.stringify(data));
 
-    return cryptoList.map((c) => {
-      const entry = data[c.id];
+    const data = cryptoList.map((c) => {
+      const entry = payload[c.id];
       return {
         symbol: c.symbol,
         name: c.name,
@@ -260,30 +335,147 @@ async function fetchCrypto(
             : null,
       };
     });
+
+    const failed = data.every((item) => item.price === null);
+    return { data, failed };
   } catch (err) {
     console.error("[market-analysis] CoinGecko error:", err);
-    return cryptoList.map((c) => ({
-      symbol: c.symbol,
-      name: c.name,
-      price: null,
-      change24h: null,
-    }));
+    return { data: empty, failed: true };
   }
 }
 
-async function fetchMacro(apiKey: string | undefined): Promise<Macro[]> {
-  if (!apiKey) {
-    console.warn("[market-analysis] FRED_API_KEY missing — returning nulls");
-    return MACRO_SERIES.map((s) => ({
-      id: s.id,
-      name: s.name,
-      value: null,
-      unit: s.unit,
-      date: null,
-    }));
+async function fetchFredSeriesHistory(
+  apiKey: string,
+  seriesId: string,
+  limit = 15,
+): Promise<FredObservation[]> {
+  const url =
+    `https://api.stlouisfed.org/fred/series/observations` +
+    `?series_id=${seriesId}&api_key=${apiKey}&limit=${limit}&sort_order=desc&file_type=json`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`FRED ${seriesId} HTTP ${res.status}`);
   }
 
-  return Promise.all(
+  const data = (await res.json()) as {
+    observations?: { date: string; value: string }[];
+  };
+
+  return (data.observations ?? [])
+    .map((obs) => {
+      const value = Number(obs.value);
+      if (!Number.isFinite(value)) return null;
+      return { value, date: obs.date };
+    })
+    .filter((obs): obs is FredObservation => obs !== null);
+}
+
+async function fetchFredHistoricalContext(
+  apiKey: string | undefined,
+): Promise<FredHistoricalContext | null> {
+  if (!apiKey) return null;
+
+  try {
+    const [fedHistory, cpiHistory] = await Promise.all([
+      fetchFredSeriesHistory(apiKey, "FEDFUNDS", 15),
+      fetchFredSeriesHistory(apiKey, "CPIAUCSL", 15),
+    ]);
+
+    return {
+      fedFunds: {
+        current: fedHistory[0] ?? null,
+        sixMonthsAgo: fedHistory[6] ?? null,
+        oneYearAgo: fedHistory[12] ?? null,
+      },
+      cpi: {
+        current: cpiHistory[0] ?? null,
+        sixMonthsAgo: cpiHistory[6] ?? null,
+      },
+    };
+  } catch (err) {
+    console.error("[market-analysis] FRED historical fetch error:", err);
+    return null;
+  }
+}
+
+function formatFredHistoricalContext(context: FredHistoricalContext | null): string {
+  if (!context) {
+    return "Contexto histórico FRED no disponible.";
+  }
+
+  const lines: string[] = ["Contexto histórico (FRED):"];
+
+  const { fedFunds, cpi } = context;
+
+  if (fedFunds.current) {
+    lines.push("Tipos Fed (FEDFUNDS):");
+    lines.push(`- Actual (${fedFunds.current.date}): ${fedFunds.current.value}%`);
+    if (fedFunds.sixMonthsAgo) {
+      lines.push(
+        `- Hace ~6 meses (${fedFunds.sixMonthsAgo.date}): ${fedFunds.sixMonthsAgo.value}%`,
+      );
+    }
+    if (fedFunds.oneYearAgo) {
+      lines.push(
+        `- Hace ~1 año (${fedFunds.oneYearAgo.date}): ${fedFunds.oneYearAgo.value}%`,
+      );
+    }
+    if (fedFunds.sixMonthsAgo) {
+      const delta6m = fedFunds.current.value - fedFunds.sixMonthsAgo.value;
+      lines.push(
+        `- Cambio vs hace 6 meses: ${delta6m > 0 ? "+" : ""}${delta6m.toFixed(2)} pp`,
+      );
+    }
+    if (fedFunds.oneYearAgo) {
+      const delta1y = fedFunds.current.value - fedFunds.oneYearAgo.value;
+      lines.push(
+        `- Cambio vs hace 1 año: ${delta1y > 0 ? "+" : ""}${delta1y.toFixed(2)} pp`,
+      );
+    }
+  }
+
+  if (cpi.current) {
+    lines.push("");
+    lines.push("Inflación CPI (CPIAUCSL, índice):");
+    lines.push(`- Actual (${cpi.current.date}): ${cpi.current.value}`);
+    if (cpi.sixMonthsAgo) {
+      lines.push(
+        `- Hace ~6 meses (${cpi.sixMonthsAgo.date}): ${cpi.sixMonthsAgo.value}`,
+      );
+      const pctChange =
+        ((cpi.current.value - cpi.sixMonthsAgo.value) / cpi.sixMonthsAgo.value) *
+        100;
+      lines.push(
+        `- Variación aproximada en 6 meses: ${pctChange > 0 ? "+" : ""}${pctChange.toFixed(2)}%`,
+      );
+    }
+  }
+
+  lines.push("");
+  lines.push(
+    "Usa este contexto histórico para dar perspectiva temporal (ej. 'los tipos llevan meses altos') en lugar de citar solo el dato de hoy.",
+  );
+
+  return lines.join("\n");
+}
+
+async function fetchMacro(
+  apiKey: string | undefined,
+): Promise<SourceFetchResult<Macro[]>> {
+  const empty = MACRO_SERIES.map((s) => ({
+    id: s.id,
+    name: s.name,
+    value: null,
+    unit: s.unit,
+    date: null,
+  }));
+
+  if (!apiKey) {
+    console.warn("[market-analysis] FRED_API_KEY missing — returning nulls");
+    return { data: empty, failed: true };
+  }
+
+  const data = await Promise.all(
     MACRO_SERIES.map(async (series) => {
       try {
         const url =
@@ -302,10 +494,10 @@ async function fetchMacro(apiKey: string | undefined): Promise<Macro[]> {
             date: null,
           };
         }
-        const data = (await res.json()) as {
+        const payload = (await res.json()) as {
           observations?: { date: string; value: string }[];
         };
-        const obs = data.observations?.[0];
+        const obs = payload.observations?.[0];
         const value = obs ? Number(obs.value) : NaN;
         return {
           id: series.id,
@@ -326,19 +518,17 @@ async function fetchMacro(apiKey: string | undefined): Promise<Macro[]> {
       }
     }),
   );
+
+  const failed = data.every((item) => item.value === null);
+  return { data, failed };
 }
 
-async function fetchUserProfile(
-  supabaseUrl: string,
-  supabaseAnonKey: string,
-  token: string,
-  userId: string,
-): Promise<UserProfile | null> {
+async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
   try {
-    const client = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { data, error } = await client
+    const admin = getSupabaseAdmin();
+    if (!admin) return null;
+
+    const { data, error } = await admin
       .from("user_profiles")
       .select("experience_level, selected_assets, free_text")
       .eq("user_id", userId)
@@ -355,65 +545,30 @@ async function fetchUserProfile(
   }
 }
 
-// ── Claude system prompt adapted to user profile ─────────────────────────────
+// ── Claude structured analysis ────────────────────────────────────────────────
 
-function buildSystemPrompt(profile: UserProfile | null): string {
-  if (!profile) {
-    return `Eres el analista de NextWall. Explica en 3 párrafos cortos y directos cómo los datos macroeconómicos actuales se relacionan con lo que está pasando en los mercados.
+const LEVEL_LABELS: Record<string, string> = {
+  beginner: "Principiante",
+  intermediate: "Intermedio",
+  advanced: "Avanzado",
+};
 
-Estructura:
-- Párrafo 1: Qué está pasando ahora mismo en los mercados (usa los datos de precios)
-- Párrafo 2: Por qué está pasando (conecta con los datos macro — tipos, inflación, petróleo, bono a 10 años)
-- Párrafo 3: Qué contexto histórico es relevante y qué debería tener en cuenta un inversor
-
-Reglas: Sin jerga innecesaria. Sin decir qué comprar o vender. Sin ser alarmista. Directo y útil.`;
-  }
-
-  const levelMap: Record<string, string> = {
-    beginner: "Principiante",
-    intermediate: "Intermedio",
-    advanced: "Avanzado",
-  };
-
+function formatSelectedAssets(profile: UserProfile | null): string {
+  if (!profile?.selected_assets) return "activos generales";
   const allAssets = [
-    ...(profile.selected_assets?.crypto ?? []),
-    ...(profile.selected_assets?.stocks ?? []),
-    ...(profile.selected_assets?.etfs ?? []),
-    ...(profile.selected_assets?.metals ?? []),
+    ...(profile.selected_assets.crypto ?? []),
+    ...(profile.selected_assets.stocks ?? []),
+    ...(profile.selected_assets.etfs ?? []),
+    ...(profile.selected_assets.metals ?? []),
   ];
-
-  const levelLabel = levelMap[profile.experience_level ?? ""] ?? "Intermedio";
-  const assetsLabel =
-    allAssets.length > 0 ? allAssets.join(", ") : "activos generales";
-
-  return `Eres el analista de NextWall. El usuario tiene este perfil:
-- Nivel: ${levelLabel}
-- Invierte en: ${assetsLabel}
-${profile.free_text ? `- Contexto adicional: ${profile.free_text}` : ""}
-
-Adapta tu explicación a su nivel:
-- Principiante: lenguaje simple, sin jerga, analogías cotidianas
-- Intermedio: puedes usar términos básicos pero explícalos brevemente
-- Avanzado: análisis directo con terminología financiera estándar
-
-Explica en 3 párrafos cómo los datos macroeconómicos actuales afectan ESPECÍFICAMENTE a los activos que este usuario tiene.
-No menciones activos que no tiene en su lista. Sin recomendar qué comprar o vender.`;
+  return allAssets.length > 0 ? allAssets.join(", ") : "activos generales";
 }
 
-// ── Analysis ──────────────────────────────────────────────────────────────────
-
-async function fetchAnalysis(
+function formatMarketData(
   stocks: Stock[],
   crypto: Crypto[],
   macro: Macro[],
-  profile: UserProfile | null,
-): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) {
-    console.warn("[market-analysis] ANTHROPIC_API_KEY missing — skipping");
-    return null;
-  }
-
+): string {
   const stockLines = stocks
     .map(
       (s) =>
@@ -447,49 +602,187 @@ async function fetchAnalysis(
     )
     .join("\n");
 
-  const systemPrompt = buildSystemPrompt(profile);
-
-  const userMessage = [
-    "Datos actuales del mercado.",
-    "",
-    stocks.length > 0
-      ? `Mercados (acciones, índices, metales):\n${stockLines}`
-      : null,
+  return [
+    stocks.length > 0 ? `Mercados (acciones, índices, metales):\n${stockLines}` : null,
     crypto.length > 0 ? `Crypto:\n${cryptoLines}` : null,
     `Macroeconomía:\n${macroLines}`,
-    "",
-    "Explica qué está pasando siguiendo la estructura indicada.",
   ]
-    .filter((l) => l !== null)
-    .join("\n");
+    .filter((line): line is string => line !== null)
+    .join("\n\n");
+}
+
+function buildClaudeSystemPrompt(
+  profile: UserProfile | null,
+  stocks: Stock[],
+  crypto: Crypto[],
+  macro: Macro[],
+  fredHistory: FredHistoricalContext | null,
+): string {
+  const experienceLevel =
+    LEVEL_LABELS[profile?.experience_level ?? ""] ??
+    profile?.experience_level ??
+    "Intermedio";
+  const selectedAssets = formatSelectedAssets(profile);
+  const freeText = profile?.free_text?.trim() || "sin contexto personal";
+  const marketData = formatMarketData(stocks, crypto, macro);
+  const historicalContext = formatFredHistoricalContext(fredHistory);
+
+  return `Eres el analista de NextWall. Tu trabajo es explicar en lenguaje directo 
+y honesto cómo la economía global afecta a las inversiones de este usuario específico.
+
+PERFIL DEL USUARIO:
+- Nivel: ${experienceLevel}
+- Tiene invertido en: ${selectedAssets}
+- Lo que quiere entender: ${freeText}
+
+DATOS DE HOY:
+${marketData}
+
+${historicalContext}
+
+REGLAS ESTRICTAS:
+- Empieza siempre con UNA frase de resumen de máximo 15 palabras que capture 
+  lo más importante del día. Ejemplo: 'Los mercados caen hoy por miedo a nuevas 
+  subidas de tipos.'
+- Luego escribe exactamente 3 párrafos cortos (máximo 4 frases cada uno):
+  * Párrafo 1: Qué está pasando hoy en los activos de este usuario
+  * Párrafo 2: Por qué está pasando — conecta con los datos macro
+  * Párrafo 3: Qué contexto histórico es relevante y qué debería saber este inversor
+- Adapta el lenguaje al nivel del usuario:
+  * Principiante: usa analogías cotidianas, evita términos técnicos, 
+    explica todo como si fuera la primera vez
+  * Intermedio: puedes usar términos básicos pero explícalos en la misma frase
+  * Avanzado: análisis directo, terminología financiera sin explicaciones básicas
+- NUNCA digas qué comprar o vender
+- NUNCA uses frases vacías como 'es importante recordar' o 'cabe destacar'
+- NUNCA repitas información entre párrafos
+- Si un activo del usuario sube mucho o baja mucho hoy (más de 2%), 
+  menciónalo específicamente y explica por qué
+- Usa el contexto histórico de FRED para dar perspectiva temporal, no solo el dato puntual
+
+FORMATO DE RESPUESTA — devuelve ÚNICAMENTE un objeto JSON válido, sin texto adicional, sin markdown:
+
+{
+  "headline": "La frase de resumen de máximo 15 palabras",
+  "asset_insights": [
+    {
+      "symbol": "símbolo del activo",
+      "name": "nombre del activo",
+      "micro_insight": "Una frase de máximo 12 palabras explicando por qué se mueve hoy este activo específico"
+    }
+  ],
+  "analysis": {
+    "paragraph_1": "Qué está pasando hoy en los activos de este usuario — máximo 4 frases",
+    "paragraph_2": "Por qué está pasando — conecta con datos macro — máximo 4 frases",
+    "paragraph_3": "Contexto histórico relevante y qué debería saber este inversor — máximo 4 frases"
+  },
+  "terms": [
+    {
+      "word": "término exacto tal como aparece en el análisis",
+      "beginner": "definición simple con analogía cotidiana, máximo 2 frases",
+      "intermediate": "definición con contexto financiero básico, máximo 2 frases",
+      "advanced": "definición técnica directa, máximo 1 frase"
+    }
+  ]
+}
+
+Reglas del JSON:
+- El headline debe ser específico para los activos de este usuario
+- Incluye asset_insights para los activos del usuario con movimiento relevante hoy
+- Los terms deben ser palabras que realmente aparecen en los 3 párrafos
+- Devuelve SOLO el JSON, nada más`;
+}
+
+function parseAnalysisJson(raw: string): StructuredAnalysis {
+  const trimmed = raw.trim();
+  let parsed: unknown;
 
   try {
-    const client = new Anthropic({ apiKey });
-    console.log("[market-analysis] Calling Anthropic model");
-
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: `${systemPrompt}\n\n${userMessage}`,
-        },
-      ],
-    });
-
-    const text = message.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("\n")
-      .trim();
-
-    console.log("[market-analysis] Analysis length:", text.length);
-    return text || null;
-  } catch (error) {
-    console.error("[market-analysis] Anthropic error:", error);
-    return null;
+    parsed = JSON.parse(trimmed);
+  } catch {
+    const codeBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlock) {
+      parsed = JSON.parse(codeBlock[1].trim());
+    } else {
+      const start = trimmed.indexOf("{");
+      const end = trimmed.lastIndexOf("}");
+      if (start === -1 || end === -1) {
+        throw new Error("No JSON object found in Claude response");
+      }
+      parsed = JSON.parse(trimmed.slice(start, end + 1));
+    }
   }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Parsed analysis is not an object");
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  if (
+    typeof obj.headline !== "string" ||
+    !Array.isArray(obj.asset_insights) ||
+    !obj.analysis ||
+    typeof obj.analysis !== "object" ||
+    !Array.isArray(obj.terms)
+  ) {
+    throw new Error("Analysis JSON missing required fields");
+  }
+
+  return obj as StructuredAnalysis;
+}
+
+async function fetchStructuredAnalysis(
+  profile: UserProfile | null,
+  stocks: Stock[],
+  crypto: Crypto[],
+  macro: Macro[],
+  fredHistory: FredHistoricalContext | null,
+  apiKey: string,
+): Promise<StructuredAnalysis> {
+  const client = new Anthropic({ apiKey });
+  const system = buildClaudeSystemPrompt(
+    profile,
+    stocks,
+    crypto,
+    macro,
+    fredHistory,
+  );
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      console.log(
+        `[market-analysis] Calling Anthropic model (attempt ${attempt + 1})`,
+      );
+
+      const message = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        system,
+        messages: [{ role: "user", content: "Devuelve el JSON." }],
+      });
+
+      const text = message.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("")
+        .trim();
+
+      const analysis = parseAnalysisJson(text);
+      console.log("[market-analysis] Analysis JSON parsed successfully");
+      return analysis;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[market-analysis] JSON parse failed (attempt ${attempt + 1}):`,
+        error,
+      );
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("No se pudo parsear el análisis de Claude");
 }
 
 // ── Market open check ─────────────────────────────────────────────────────────
@@ -567,11 +860,60 @@ export async function GET(request: Request) {
 
     console.log("[market-analysis] Authenticated user:", user.id);
 
-    // Fetch user profile and build filtered asset lists in parallel with macro
-    const [profile, macro] = await Promise.all([
-      fetchUserProfile(supabaseUrl, supabaseAnonKey, token, user.id),
+    const rateLimit = checkRateLimit(user.id);
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: "Demasiadas peticiones, espera un momento" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfter) },
+        },
+      );
+    }
+
+    const stripe = getStripe();
+    const stripeCustomerId = await resolveStripeCustomerId(
+      stripe,
+      supabaseUrl,
+      supabaseAnonKey,
+      token,
+      user.id,
+      user.email ?? undefined,
+    );
+
+    if (!stripeCustomerId) {
+      return NextResponse.json(
+        { error: "Suscripción requerida", redirect: "/payment" },
+        { status: 403 },
+      );
+    }
+
+    try {
+      const subscribed = await hasActiveSubscription(stripeCustomerId, stripe);
+      if (!subscribed) {
+        return NextResponse.json(
+          { error: "Suscripción requerida", redirect: "/payment" },
+          { status: 403 },
+        );
+      }
+    } catch (stripeError) {
+      console.error("[market-analysis] Stripe verification error:", stripeError);
+      return NextResponse.json(
+        { error: "No se pudo verificar la suscripción" },
+        { status: 500 },
+      );
+    }
+
+    // Fetch user profile, macro snapshot, and FRED historical context in parallel
+    const [profile, macroResult, fredHistory] = await Promise.all([
+      fetchUserProfile(user.id),
       fetchMacro(fredKey),
+      fetchFredHistoricalContext(fredKey),
     ]);
+
+    const macro = macroResult.data;
+    const sourceErrors: ("finnhub" | "coingecko" | "fred")[] = [];
+    if (macroResult.failed) sourceErrors.push("fred");
 
     console.log(
       "[market-analysis] Profile:",
@@ -583,19 +925,15 @@ export async function GET(request: Request) {
     const stocksToFetch = buildStockList(profile);
     const cryptoToFetch = buildCryptoList(profile);
 
-    const [stocks, crypto] = await Promise.all([
-      finnhubKey
-        ? fetchStocks(finnhubKey, stocksToFetch)
-        : Promise.resolve(
-            stocksToFetch.map((s) => ({
-              ...s,
-              price: null,
-              change: null,
-              changePercent: null,
-            })),
-          ),
+    const [stocksResult, cryptoResult] = await Promise.all([
+      fetchStocks(finnhubKey, stocksToFetch),
       fetchCrypto(coingeckoKey, cryptoToFetch),
     ]);
+
+    const stocks = stocksResult.data;
+    const crypto = cryptoResult.data;
+    if (stocksResult.failed) sourceErrors.push("finnhub");
+    if (cryptoResult.failed) sourceErrors.push("coingecko");
 
     console.log("[market-analysis] Data fetched:", {
       stocksWithPrice: stocks.filter((s) => s.price !== null).length,
@@ -603,19 +941,37 @@ export async function GET(request: Request) {
       macroWithValue: macro.filter((m) => m.value !== null).length,
     });
 
-    const analysis = await fetchAnalysis(stocks, crypto, macro, profile);
-
-    const result = {
+    const marketPayload = {
       stocks,
       crypto,
       macro,
-      analysis,
       marketOpen: isUsMarketOpen(),
       lastUpdated: new Date().toISOString(),
+      sourceErrors,
     };
 
-    console.log("[market-analysis] Returning result keys:", Object.keys(result));
-    return NextResponse.json(result);
+    const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+
+    if (!anthropicKey) {
+      console.warn("[market-analysis] ANTHROPIC_API_KEY missing — market data only");
+      return NextResponse.json({ ...marketPayload, analysis: null });
+    }
+
+    try {
+      const analysis = await fetchStructuredAnalysis(
+        profile,
+        stocks,
+        crypto,
+        macro,
+        fredHistory,
+        anthropicKey,
+      );
+
+      return NextResponse.json({ ...marketPayload, analysis });
+    } catch (analysisError) {
+      console.error("[market-analysis] Analysis generation failed:", analysisError);
+      return NextResponse.json({ ...marketPayload, analysis: null });
+    }
   } catch (error) {
     console.error("[market-analysis] Unhandled error:", error);
     return NextResponse.json(

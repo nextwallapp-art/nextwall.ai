@@ -1,25 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-
-function getStripe() {
-  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY is not configured");
-  }
-  if (!secretKey.startsWith("sk_test_") && !secretKey.startsWith("sk_live_")) {
-    throw new Error("STRIPE_SECRET_KEY has an invalid format");
-  }
-  return new Stripe(secretKey);
-}
+import { getStripe } from "@/lib/stripe";
+import {
+  fetchStripeCustomerId,
+  getOrCreateStripeCustomer,
+  saveStripeCustomerId,
+} from "@/lib/subscription";
+import { SITE_URL } from "@/lib/site";
 
 function getBaseUrl(request: Request) {
-  return (
-    request.headers.get("origin") ??
-    process.env.NEXT_PUBLIC_BASE_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "http://localhost:3000"
-  );
+  const origin = request.headers.get("origin");
+  if (origin) return origin;
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3000";
+  }
+  return SITE_URL;
 }
 
 export async function POST(request: Request) {
@@ -31,10 +27,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     const {
       data: { user },
@@ -45,14 +41,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const existingCustomerId = await fetchStripeCustomerId(user.id);
+
     const baseUrl = getBaseUrl(request);
     const stripe = getStripe();
+
+    const customerId = await getOrCreateStripeCustomer(
+      stripe,
+      user.id,
+      user.email ?? undefined,
+      existingCustomerId,
+    );
+
+    if (existingCustomerId !== customerId) {
+      await saveStripeCustomerId(user.id, customerId);
+    }
+
+    const trialDays = Number(process.env.STRIPE_TRIAL_DAYS ?? "14");
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       payment_method_options: {
         card: { request_three_d_secure: "automatic" },
       },
+      customer: customerId,
       line_items: [
         {
           price_data: {
@@ -68,7 +80,10 @@ export async function POST(request: Request) {
         },
       ],
       mode: "subscription",
-      customer_email: user.email ?? undefined,
+      subscription_data: {
+        trial_period_days: trialDays,
+      },
+      allow_promotion_codes: true,
       success_url: `${baseUrl}/onboarding`,
       cancel_url: `${baseUrl}/payment?cancelled=true`,
       metadata: {

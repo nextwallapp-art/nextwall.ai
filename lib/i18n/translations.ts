@@ -11,7 +11,7 @@ export const translations = {
       subtitle:
         "Understand why your investments move — in plain language, powered by live market data.",
       cta: "Get started",
-      ctaSecondary: "See how it works",
+      ctaSecondary: "Try the demo",
       stat1: "Live data",
       stat1Value: "24/7",
       stat2: "Assets",
@@ -118,7 +118,10 @@ export const translations = {
         "Alerts and portfolio tracking",
       ],
       cancelled: "Payment cancelled. You can try again whenever you want.",
-      subscribe: "Subscribe",
+      trialBadge: "14-day free trial",
+      trialNote: "Try free for 14 days. Cancel anytime before you're charged.",
+      promoHint: "Have a beta code? Enter it on the Stripe checkout page.",
+      subscribe: "Start free trial",
       redirecting: "Redirecting to Stripe…",
       processing: "Processing…",
       methods: "Accepted payment methods",
@@ -137,9 +140,22 @@ export const translations = {
       realtime: "Live",
       lastClose: "Last close data",
       updatedAt: "Updated at",
+      updatedRelative: "Updated",
+      editProfile: "Edit my profile",
+      sourceErrorPartial:
+        "We couldn't load data from {sources}. The rest of your analysis is still available.",
+      sources: {
+        finnhub: "Finnhub",
+        coingecko: "CoinGecko",
+        fred: "FRED",
+      },
       refresh: "Refresh analysis",
       refreshing: "Refreshing…",
-      tabs: { stocks: "Markets", crypto: "Crypto", macro: "Macro" },
+      tabs: { markets: "Markets", crypto: "Crypto", macro: "Macro" },
+      learningMode: "Learning mode",
+      onboardingBanner:
+        "Have your investments or level changed? Update your profile →",
+      onboardingBannerAction: "Update profile",
       sectionGeneral: "Overview",
       yourAssets: "Your assets",
       stocksLabel: "Stocks",
@@ -160,6 +176,7 @@ export const translations = {
       generalMacro:
         "Key macro indicators that explain why markets move the way they do.",
       analysisTitle: "What's going on?",
+      analyzingMarkets: "Analyzing the markets…",
       analysisUnavailable: "Analysis is not available right now.",
       noData: "no data",
       signOut: "Sign out",
@@ -170,6 +187,16 @@ export const translations = {
         loadFailed: "Could not load analysis",
         unexpected: "Unexpected error",
       },
+    },
+    demo: {
+      badge: "Interactive demo",
+      banner:
+        "Sample portfolio and analysis for illustration — not live market data. Sign up to get daily analysis on your real holdings.",
+      cta: "Start free trial",
+      profileLabel: "Demo profile · Beginner · Tech, ETFs, crypto, gold",
+      sampleData: "Sample data",
+      footer:
+        "Want this every day, personalized to your assets? Create an account — 14-day free trial, no charge until it ends.",
     },
   },
   es: {
@@ -182,7 +209,7 @@ export const translations = {
       subtitle:
         "Entiende por qué se mueven tus inversiones — en lenguaje claro, con datos de mercado en vivo.",
       cta: "Empieza ahora",
-      ctaSecondary: "Ver cómo funciona",
+      ctaSecondary: "Probar la demo",
       stat1: "Datos en vivo",
       stat1Value: "24/7",
       stat2: "Activos",
@@ -291,7 +318,10 @@ export const translations = {
         "Alertas y seguimiento de portfolio",
       ],
       cancelled: "Pago cancelado. Puedes intentarlo de nuevo cuando quieras.",
-      subscribe: "Suscribirse",
+      trialBadge: "14 días gratis",
+      trialNote: "Prueba 14 días gratis. Cancela cuando quieras antes del cobro.",
+      promoHint: "¿Tienes un código beta? Introdúcelo en el checkout de Stripe.",
+      subscribe: "Empezar prueba gratis",
       redirecting: "Redirigiendo a Stripe…",
       processing: "Procesando…",
       methods: "Métodos de pago aceptados",
@@ -310,9 +340,22 @@ export const translations = {
       realtime: "Tiempo real",
       lastClose: "Datos del último cierre",
       updatedAt: "Actualizado a las",
+      updatedRelative: "Actualizado",
+      editProfile: "Editar mi perfil",
+      sourceErrorPartial:
+        "No hemos podido cargar los datos de {sources}. El resto de tu análisis sigue disponible.",
+      sources: {
+        finnhub: "Finnhub",
+        coingecko: "CoinGecko",
+        fred: "FRED",
+      },
       refresh: "Actualizar análisis",
       refreshing: "Actualizando…",
-      tabs: { stocks: "Mercados", crypto: "Crypto", macro: "Macro" },
+      tabs: { markets: "Mercados", crypto: "Crypto", macro: "Macro" },
+      learningMode: "Modo aprendizaje",
+      onboardingBanner:
+        "¿Han cambiado tus inversiones o tu nivel? Actualiza tu perfil →",
+      onboardingBannerAction: "Actualizar perfil",
       sectionGeneral: "General",
       yourAssets: "Tus activos",
       stocksLabel: "Acciones",
@@ -333,6 +376,7 @@ export const translations = {
       generalMacro:
         "Indicadores macro clave que explican por qué los mercados se mueven como lo hacen.",
       analysisTitle: "¿Qué está pasando?",
+      analyzingMarkets: "Analizando los mercados…",
       analysisUnavailable: "El análisis no está disponible en este momento.",
       noData: "sin dato",
       signOut: "Cerrar sesión",
@@ -343,6 +387,16 @@ export const translations = {
         loadFailed: "No se pudo cargar el análisis",
         unexpected: "Error inesperado",
       },
+    },
+    demo: {
+      badge: "Demo interactiva",
+      banner:
+        "Cartera y análisis de ejemplo — no son datos en vivo. Regístrate para recibir análisis diario con tus activos reales.",
+      cta: "Empezar prueba gratis",
+      profileLabel: "Perfil demo · Principiante · Tech, ETFs, crypto, oro",
+      sampleData: "Datos de ejemplo",
+      footer:
+        "¿Quieres esto cada día, personalizado a tus activos? Crea una cuenta — 14 días gratis, sin cobro hasta que termine.",
     },
   },
 } as const;

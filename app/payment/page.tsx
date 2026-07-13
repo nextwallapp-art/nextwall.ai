@@ -104,10 +104,16 @@ function PaymentContent() {
             <h1 className="mt-4 text-2xl font-medium sm:text-3xl">
               {t.payment.title}
             </h1>
+            <p className="mt-4 inline-block border border-[#111111]/15 bg-[#fafafa] px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-[#111111]/65">
+              {t.payment.trialBadge}
+            </p>
             <p className="mt-6 text-4xl font-medium tracking-tight">
               {t.payment.price}
             </p>
             <p className="mt-1 text-sm text-[#111111]/45">{t.payment.perMonth}</p>
+            <p className="mt-4 text-sm leading-relaxed text-[#111111]/55">
+              {t.payment.trialNote}
+            </p>
           </div>
 
           <ul className="mb-10 space-y-4 text-sm leading-relaxed text-[#111111]/55">
@@ -136,6 +142,10 @@ function PaymentContent() {
           >
             {loading ? t.payment.redirecting : t.payment.subscribe}
           </button>
+
+          <p className="mt-4 text-center text-xs leading-relaxed text-[#111111]/40">
+            {t.payment.promoHint}
+          </p>
 
           <PaymentMethodIcons />
 
