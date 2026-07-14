@@ -95,7 +95,7 @@ function PaymentContent() {
     <div className="flex min-h-screen flex-col text-[#111111]">
       <Header showLoginButton={false} />
 
-      <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 sm:px-12">
+      <main className="flex flex-1 flex-col items-center justify-center px-[var(--page-gutter)] pb-[calc(6rem+var(--safe-bottom))] sm:px-12">
         <div className="w-full max-w-md">
           <div className="mb-12 text-center">
             <p className="text-xs uppercase tracking-[0.25em] text-[#111111]/45">

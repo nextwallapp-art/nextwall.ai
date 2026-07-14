@@ -120,8 +120,8 @@ export default function DemoPage() {
     <div className="flex min-h-screen flex-col text-[#111111]">
       <Header showLoginButton />
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 pt-4 sm:px-6 md:px-10">
-        <div className="mb-6 flex flex-wrap items-center justify-end gap-4">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-[var(--page-gutter)] pb-[calc(6rem+var(--safe-bottom))] pt-2 sm:pt-4 md:px-10">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
           <LearningModeToggle
             enabled={learningMode}
             onChange={setLearningMode}
@@ -130,7 +130,7 @@ export default function DemoPage() {
           <LanguageToggle />
         </div>
 
-        <div className="mb-8 border border-[#111111]/15 bg-[#fafafa] px-5 py-4">
+        <div className="mb-8 border border-[#111111]/15 bg-[#fafafa] px-4 py-4 sm:px-5">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#111111]/45">
             {t.demo.badge}
           </p>
@@ -139,7 +139,7 @@ export default function DemoPage() {
           </p>
           <Link
             href="/login"
-            className="mt-4 inline-flex bg-[#111111] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-85"
+            className="mt-4 inline-flex w-full items-center justify-center bg-[#111111] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-85 sm:w-auto"
           >
             {t.demo.cta}
           </Link>
@@ -164,7 +164,7 @@ export default function DemoPage() {
           {analysis.headline}
         </h2>
 
-        <div className="-mx-4 mb-8 flex gap-4 overflow-x-auto border-b border-[#bbbbbb] px-4 sm:mx-0 sm:gap-6 sm:px-0">
+        <div className="-mx-[var(--page-gutter)] mb-8 flex gap-4 overflow-x-auto border-b border-[#bbbbbb] px-[var(--page-gutter)] scrollbar-none sm:mx-0 sm:gap-6 sm:px-0">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -235,11 +235,11 @@ export default function DemoPage() {
           </div>
         </section>
 
-        <div className="mt-12 border border-[#bbbbbb] bg-[#ffffff] p-6 text-center">
+        <div className="mt-12 border border-[#bbbbbb] bg-[#ffffff] p-5 text-center sm:p-6">
           <p className="text-sm leading-relaxed text-[#111111]/55">{t.demo.footer}</p>
           <Link
             href="/login"
-            className="mt-4 inline-flex bg-[#4B4B4B] px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85"
+            className="mt-4 inline-flex w-full items-center justify-center bg-[#4B4B4B] px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85 sm:w-auto"
           >
             {t.demo.cta}
           </Link>

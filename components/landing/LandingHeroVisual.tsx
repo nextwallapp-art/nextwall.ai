@@ -43,8 +43,8 @@ export default function LandingHeroVisual() {
           </span>
         </div>
 
-        <div className="flex min-h-[380px]">
-          <div className="w-14 shrink-0 bg-[#4B4B4B]" />
+        <div className="flex min-h-[300px] sm:min-h-[380px]">
+          <div className="hidden w-14 shrink-0 bg-[#4B4B4B] sm:block" />
 
           <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
             <svg

@@ -20,16 +20,28 @@ export default function DashboardSidebar({
 
   if (compact) {
     return (
-      <div className="flex items-center justify-between bg-[#4B4B4B] px-5 py-4 text-[#ffffff] md:hidden">
+      <div className="flex items-center justify-between gap-3 bg-[#4B4B4B] px-4 py-3.5 text-[#ffffff] md:hidden">
         <Link
           href="/"
-          className="transition-opacity hover:opacity-75"
+          className="shrink-0 transition-opacity hover:opacity-75"
         >
           <NextWallLogo className="h-5 w-auto" invert priority />
         </Link>
-        <Link href="/dashboard" className="text-sm font-medium text-[#ffffff]/90">
-          {t.dashboard.home}
-        </Link>
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="truncate text-sm font-medium text-[#ffffff]/90"
+          >
+            {t.dashboard.home}
+          </Link>
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="shrink-0 text-xs text-[#ffffff]/60 transition-opacity hover:text-[#ffffff]"
+          >
+            {t.dashboard.signOut}
+          </button>
+        </div>
       </div>
     );
   }

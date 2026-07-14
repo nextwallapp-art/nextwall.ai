@@ -24,7 +24,7 @@ export default function HomePage() {
         </div>
 
         <section className="relative flex min-h-screen flex-col overflow-hidden">
-          <main className="relative z-10 flex flex-1 flex-col justify-center px-[var(--page-gutter-wide)] pb-16 pt-28 md:pb-24 md:pt-36 lg:pt-40">
+          <main className="relative z-10 flex flex-1 flex-col justify-center px-[var(--page-gutter-wide)] pb-12 pt-24 sm:pb-16 md:pb-24 md:pt-36 lg:pt-40">
             <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)] lg:gap-16">
               <div className="flex flex-col items-start text-left">
                 <ScrollReveal>
@@ -35,7 +35,7 @@ export default function HomePage() {
 
                 <AnimatedTitle
                   text={t.hero.headline}
-                  className="mt-5 w-full font-[family-name:var(--font-heading)] text-[clamp(2.5rem,6.5vw,4.5rem)] font-normal leading-[1.02] tracking-[-0.02em] text-[var(--foreground)]"
+                  className="mt-5 w-full font-[family-name:var(--font-heading)] text-[clamp(2rem,8vw,4.5rem)] font-normal leading-[1.05] tracking-[-0.02em] text-[var(--foreground)]"
                 />
 
                 <ScrollReveal delayMs={120}>
@@ -46,11 +46,11 @@ export default function HomePage() {
 
                 <ScrollReveal
                   delayMs={180}
-                  className="mt-9 flex flex-wrap items-center gap-3"
+                  className="mt-9 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center"
                 >
                   <Link
                     href="/login"
-                    className="group inline-flex items-center gap-2.5 rounded-full bg-[var(--foreground)] px-8 py-3.5 text-sm font-medium tracking-wide text-white transition-[transform,opacity] duration-300 hover:opacity-90 md:px-10 md:py-4 md:text-base"
+                    className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-[var(--foreground)] px-8 py-3.5 text-sm font-medium tracking-wide text-white transition-[transform,opacity] duration-300 hover:opacity-90 sm:w-auto md:px-10 md:py-4 md:text-base"
                   >
                     {t.hero.cta}
                     <svg
@@ -71,7 +71,7 @@ export default function HomePage() {
 
                   <Link
                     href="/demo"
-                    className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-7 py-3.5 text-sm font-medium text-[var(--foreground)] transition-colors duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)] md:py-4 md:text-base"
+                    className="inline-flex w-full items-center justify-center rounded-full border border-[var(--border)] bg-white px-7 py-3.5 text-sm font-medium text-[var(--foreground)] transition-colors duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)] sm:w-auto md:py-4 md:text-base"
                   >
                     {t.hero.ctaSecondary}
                   </Link>

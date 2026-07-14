@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { Instrument_Serif, Inter } from "next/font/google";
 import Providers from "@/components/Providers";
@@ -22,6 +22,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "NextWall",
   description: "Understand why your investments move",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#fafafa",
 };
 
 const DATA_NODES = [

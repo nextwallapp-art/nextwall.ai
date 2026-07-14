@@ -270,7 +270,7 @@ function DashboardTabs({
   ];
 
   return (
-    <div className="-mx-6 mb-8 flex gap-4 overflow-x-auto border-b border-[#bbbbbb] px-6 sm:mx-0 sm:gap-6 sm:px-0">
+    <div className="-mx-4 mb-8 flex gap-4 overflow-x-auto border-b border-[#bbbbbb] px-4 scrollbar-none sm:mx-0 sm:gap-6 sm:px-0">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -616,7 +616,7 @@ function DashboardContent() {
       <DashboardSidebar onSignOut={handleSignOut} email={email} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center justify-end gap-4 px-4 py-6 sm:gap-6 sm:px-10">
+        <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-6 sm:px-10 sm:py-6">
           <LearningModeToggle
             enabled={learningMode}
             onChange={handleLearningModeChange}
@@ -625,7 +625,7 @@ function DashboardContent() {
           <LanguageToggle />
         </div>
 
-        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 sm:px-6 sm:pb-24 md:px-10">
+        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-[calc(6rem+var(--safe-bottom))] sm:px-6 md:px-10">
           {showSuccess && (
             <p className="animate-fade-up mb-8 text-lg font-medium">
               {t.dashboard.success}
@@ -673,10 +673,10 @@ function DashboardContent() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
               <Link
                 href="/onboarding"
-                className="inline-flex border border-[#bbbbbb] bg-[#ffffff] px-4 py-3 text-sm font-medium text-[#111111] transition-opacity hover:opacity-70"
+                className="inline-flex w-full items-center justify-center border border-[#bbbbbb] bg-[#ffffff] px-4 py-3 text-sm font-medium text-[#111111] transition-opacity hover:opacity-70 sm:w-auto"
               >
                 {t.dashboard.editProfile}
               </Link>
@@ -684,7 +684,7 @@ function DashboardContent() {
                 type="button"
                 onClick={loadAnalysis}
                 disabled={loading}
-                className="inline-flex bg-[#4B4B4B] px-5 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-40 sm:px-6"
+                className="inline-flex w-full items-center justify-center bg-[#4B4B4B] px-5 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-40 sm:w-auto sm:px-6"
               >
                 {loading ? t.dashboard.refreshing : t.dashboard.refresh}
               </button>

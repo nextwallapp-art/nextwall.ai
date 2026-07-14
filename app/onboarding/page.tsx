@@ -329,9 +329,12 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#ffffff] text-[#111111]">
       {/* Header */}
-      <header className="flex items-center justify-between px-[var(--page-gutter,1.75rem)] py-6">
-        <NextWallLogo className="h-6 w-auto opacity-45" priority />
-        <div className="flex items-center gap-4">
+      <header className="flex items-center justify-between px-[var(--page-gutter)] py-4 sm:py-6">
+        <NextWallLogo className="h-5 w-auto opacity-45 sm:h-6" priority />
+        <span className="text-xs font-medium text-[#111111]/45 md:hidden">
+          Paso {step}/3
+        </span>
+        <div className="hidden items-center gap-4 md:flex">
           {STEP_LABELS.map((label, i) => (
             <span
               key={label}
@@ -358,13 +361,13 @@ export default function OnboardingPage() {
       </div>
 
       {/* Step content */}
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-[var(--page-gutter,1.75rem)] pb-16 pt-14 md:pt-20">
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-[var(--page-gutter)] pb-[calc(4rem+var(--safe-bottom))] pt-10 sm:pt-14 md:pt-20">
         <div key={step} className="onboarding-step flex flex-1 flex-col">
 
           {/* ── STEP 1: Experience level ── */}
           {step === 1 && (
             <>
-              <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-[2.5rem]">
+              <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-[2.5rem]">
                 ¿Cuánto sabes de economía e inversiones?
               </h1>
               <p className="mt-3 text-base text-[#111111]/50">
@@ -404,7 +407,7 @@ export default function OnboardingPage() {
           {/* ── STEP 2: Assets ── */}
           {step === 2 && (
             <>
-              <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-[2.5rem]">
+              <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-[2.5rem]">
                 ¿En qué inviertes?
               </h1>
               <p className="mt-3 text-base text-[#111111]/50">
@@ -485,7 +488,7 @@ export default function OnboardingPage() {
           {/* ── STEP 3: Free text ── */}
           {step === 3 && (
             <>
-              <h1 className="text-3xl font-bold leading-tight tracking-tight md:text-[2.5rem]">
+              <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-[2.5rem]">
                 ¿Qué quieres entender mejor?
               </h1>
               <p className="mt-3 text-base text-[#111111]/50">
@@ -508,17 +511,17 @@ export default function OnboardingPage() {
             </p>
           )}
 
-          <div className="mt-auto flex items-center justify-between pt-14">
+          <div className="mt-auto flex flex-col-reverse gap-4 pt-10 sm:flex-row sm:items-center sm:justify-between sm:pt-14">
             {step > 1 ? (
               <button
                 type="button"
                 onClick={() => setStep((s) => s - 1)}
-                className="text-sm text-[#111111]/40 transition-opacity hover:opacity-70"
+                className="text-center text-sm text-[#111111]/40 transition-opacity hover:opacity-70 sm:text-left"
               >
                 ← Atrás
               </button>
             ) : (
-              <span />
+              <span className="hidden sm:block" />
             )}
 
             {step < 3 ? (
@@ -526,7 +529,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canGoNext}
-                className="bg-[#111111] px-8 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-30"
+                className="w-full bg-[#111111] px-8 py-3.5 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-30 sm:w-auto sm:py-3"
               >
                 Siguiente →
               </button>
@@ -535,7 +538,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={saving}
-                className="bg-[#111111] px-8 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-40"
+                className="w-full bg-[#111111] px-6 py-3.5 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-40 sm:w-auto sm:px-8 sm:py-3"
               >
                 {saving
                   ? "Guardando…"

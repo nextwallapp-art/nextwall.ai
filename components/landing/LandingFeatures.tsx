@@ -36,7 +36,7 @@ export default function LandingFeatures() {
             <ScrollReveal
               key={item.tag}
               delayMs={index * 90}
-              className={`${span} group rounded-2xl border border-[var(--border)] bg-white p-7 transition-[border-color,transform] duration-400 hover:-translate-y-0.5 hover:border-[var(--accent)]/40 md:p-8`}
+              className={`${span} group rounded-2xl border border-[var(--border)] bg-white p-5 transition-[border-color,transform] duration-400 hover:-translate-y-0.5 hover:border-[var(--accent)]/40 sm:p-7 md:p-8`}
             >
               <div className="flex items-start justify-between gap-4">
                 <span className="font-mono text-xs text-[var(--muted)]">
@@ -47,7 +47,7 @@ export default function LandingFeatures() {
                   className="mt-1 h-px w-8 bg-[var(--border)] transition-all duration-400 group-hover:w-12 group-hover:bg-[var(--accent)]"
                 />
               </div>
-              <h3 className="mt-5 font-[family-name:var(--font-heading)] text-[1.65rem] font-normal tracking-tight text-[var(--foreground)]">
+              <h3 className="mt-5 font-[family-name:var(--font-heading)] text-xl font-normal tracking-tight text-[var(--foreground)] sm:text-[1.65rem]">
                 {item.title}
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-[var(--muted)] md:text-[0.95rem]">

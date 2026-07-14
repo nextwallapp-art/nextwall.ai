@@ -68,7 +68,7 @@ function TermSpan({
   const definition = getDefinition(term, experienceLevel);
 
   return (
-    <span className="relative inline">
+    <span className="relative inline-block max-w-full">
       <button
         type="button"
         onClick={onToggle}
@@ -83,7 +83,7 @@ function TermSpan({
       {active && (
         <span
           role="tooltip"
-          className="absolute left-0 top-full z-50 mt-2 block w-64 border border-[#bbbbbb] bg-[#ffffff] p-4 shadow-sm"
+          className="absolute left-1/2 top-full z-50 mt-2 block w-[min(16rem,calc(100vw-2rem))] -translate-x-1/2 border border-[#bbbbbb] bg-[#ffffff] p-4 shadow-sm sm:left-0 sm:w-64 sm:translate-x-0"
         >
           <span className="block text-xs font-medium uppercase tracking-wide text-[#111111]/45">
             {term.word}

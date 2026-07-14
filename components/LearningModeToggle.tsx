@@ -12,9 +12,9 @@ export default function LearningModeToggle({
   label,
 }: LearningModeToggleProps) {
   return (
-    <div className="inline-flex items-center gap-3 select-none">
+    <div className="inline-flex max-w-full items-center gap-2.5 select-none sm:gap-3">
       <span
-        className={`text-sm font-medium transition-colors ${
+        className={`text-xs font-medium transition-colors sm:text-sm ${
           enabled ? "text-[#111111]" : "text-[#111111]/45"
         }`}
       >

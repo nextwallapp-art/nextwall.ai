@@ -9,8 +9,9 @@
   --surface-muted: #f3f3f3;
   --border: #e5e5e5;
   --muted: #737373;
-  --page-gutter: clamp(1.75rem, 4.5vw, 3.75rem);
-  --page-gutter-wide: clamp(2rem, 6vw, 5rem);
+  --page-gutter: clamp(1rem, 4vw, 3.75rem);
+  --page-gutter-wide: clamp(1.25rem, 5vw, 5rem);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
@@ -26,6 +27,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body,
@@ -51,6 +53,9 @@ body {
   color: var(--foreground);
   position: relative;
   min-height: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  padding-bottom: var(--safe-bottom);
 }
 
 body::after {
@@ -463,6 +468,36 @@ body::before {
   background: rgba(250, 250, 250, 0.82);
   backdrop-filter: blur(14px) saturate(120%);
   -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+@media (max-width: 640px) {
+  .mobile-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .mobile-full {
+    width: 100%;
+  }
+
+  .mobile-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

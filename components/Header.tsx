@@ -39,24 +39,24 @@ export default function Header({
 
   return (
     <header
-      className={`animate-fade-down relative z-10 flex items-center justify-between px-[var(--page-gutter)] py-5 transition-[background,border,box-shadow] duration-500 md:py-6 ${shellClass}`}
+      className={`animate-fade-down relative z-10 flex items-center justify-between px-[var(--page-gutter)] py-4 transition-[background,border,box-shadow] duration-500 sm:py-5 md:py-6 ${shellClass}`}
     >
       <Link
         href="/"
-        className="group relative inline-flex transition-opacity hover:opacity-70"
+        className="group relative inline-flex shrink-0 transition-opacity hover:opacity-70"
       >
-        <NextWallLogo priority />
+        <NextWallLogo className="h-6 w-auto sm:h-7 md:h-8" priority />
       </Link>
 
-      <div className="flex items-center gap-5 sm:gap-7">
+      <div className="flex shrink-0 items-center gap-3 sm:gap-5 md:gap-7">
         <LanguageToggle />
 
         {showLoginButton && (
           <Link
             href="/login"
-            className={`animate-fade-down delay-100 text-sm font-medium transition-all duration-300 sm:text-base ${
+            className={`animate-fade-down delay-100 text-xs font-medium transition-all duration-300 sm:text-sm md:text-base ${
               variant === "landing"
-                ? "rounded-full border border-[var(--border)] bg-white px-5 py-2.5 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                ? "rounded-full border border-[var(--border)] bg-white px-4 py-2 sm:px-5 sm:py-2.5 hover:border-[var(--accent)] hover:text-[var(--accent)]"
                 : "text-[var(--foreground)] hover:opacity-60"
             }`}
           >
