@@ -198,6 +198,20 @@ export const translations = {
       footer:
         "Want this every day, personalized to your assets? Create an account — 14-day free trial, no charge until it ends.",
     },
+    assetDetail: {
+      badge: "Asset profile",
+      title: "Asset details",
+      close: "Close",
+      marketCap: "Market cap",
+      topProduct: "Top revenue driver",
+      financials: "Financial data",
+      revenueDrivers: "What makes this asset money",
+      overview: "Overview",
+      todayInsight: "Today's context",
+      loading: "Loading details…",
+      unavailable: "Details unavailable right now.",
+      tapHint: "Tap for details →",
+    },
   },
   es: {
     header: {
@@ -397,6 +411,20 @@ export const translations = {
       sampleData: "Datos de ejemplo",
       footer:
         "¿Quieres esto cada día, personalizado a tus activos? Crea una cuenta — 14 días gratis, sin cobro hasta que termine.",
+    },
+    assetDetail: {
+      badge: "Ficha del activo",
+      title: "Detalles del activo",
+      close: "Cerrar",
+      marketCap: "Capitalización",
+      topProduct: "Principal fuente de ingresos",
+      financials: "Datos financieros",
+      revenueDrivers: "De dónde sale el dinero",
+      overview: "Resumen",
+      todayInsight: "Contexto de hoy",
+      loading: "Cargando detalles…",
+      unavailable: "Los detalles no están disponibles ahora.",
+      tapHint: "Toca para ver detalles →",
     },
   },
 } as const;

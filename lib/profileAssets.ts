@@ -23,13 +23,21 @@ export const STOCK_BY_NAME: Record<string, { symbol: string; name: string }> = {
 
 export const CRYPTO_BY_NAME: Record<
   string,
-  { symbol: string; name: string }
+  { symbol: string; name: string; id: string }
 > = {
-  Bitcoin: { symbol: "BTC", name: "Bitcoin" },
-  Ethereum: { symbol: "ETH", name: "Ethereum" },
-  Solana: { symbol: "SOL", name: "Solana" },
-  BNB: { symbol: "BNB", name: "BNB" },
-  XRP: { symbol: "XRP", name: "XRP" },
+  Bitcoin: { symbol: "BTC", name: "Bitcoin", id: "bitcoin" },
+  Ethereum: { symbol: "ETH", name: "Ethereum", id: "ethereum" },
+  Solana: { symbol: "SOL", name: "Solana", id: "solana" },
+  BNB: { symbol: "BNB", name: "BNB", id: "binancecoin" },
+  XRP: { symbol: "XRP", name: "XRP", id: "ripple" },
+};
+
+export const COINGECKO_ID_BY_SYMBOL: Record<string, string> = {
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  SOL: "solana",
+  BNB: "binancecoin",
+  XRP: "ripple",
 };
 
 export const GENERAL_MARKET_SYMBOLS = ["SPY", "QQQ"];

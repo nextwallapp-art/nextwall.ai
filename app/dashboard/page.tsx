@@ -1,5 +1,7 @@
 "use client";
 
+import AssetCard, { AssetGrid, MacroCard, SkeletonBlock } from "@/components/AssetCard";
+import AssetDetailPanel from "@/components/AssetDetailPanel";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import ExplainableText from "@/components/ExplainableText";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -10,6 +12,7 @@ import {
 } from "@/lib/onboardingBanner";
 import { formatRelativeUpdated } from "@/lib/formatRelativeTime";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import type { AssetDetail } from "@/lib/marketTypes";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -79,18 +82,6 @@ type UserProfile = {
   last_onboarding_date: string | null;
 };
 
-function SkeletonBlock({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-sm bg-[#111111]/8 ${className}`} />;
-}
-
-function formatNumber(value: number | null, locale: string, decimals = 2) {
-  if (value === null) return null;
-  return value.toLocaleString(locale, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-}
-
 function getMicroInsight(
   analysis: StructuredAnalysis | null,
   symbol: string,
@@ -124,133 +115,6 @@ function HeadlineSection({
     <h2 className="mb-8 text-xl font-medium leading-tight tracking-tight text-[#111111] sm:mb-10 sm:text-2xl md:text-[2rem]">
       {headline}
     </h2>
-  );
-}
-
-function ChangeBadge({
-  value,
-  loading,
-}: {
-  value: number | null;
-  loading: boolean;
-}) {
-  if (loading) {
-    return <SkeletonBlock className="h-4 w-14" />;
-  }
-  if (value === null) {
-    return <SkeletonBlock className="h-4 w-12" />;
-  }
-  const up = value >= 0;
-  return (
-    <span
-      className={`text-sm font-medium ${up ? "text-[#0f9d58]" : "text-[#d93636]"}`}
-    >
-      {up ? "+" : ""}
-      {value.toFixed(2)}%
-    </span>
-  );
-}
-
-function AssetCard({
-  name,
-  symbol,
-  price,
-  change,
-  microInsight,
-  loadingPrice,
-  loadingInsight,
-  priceUnavailable,
-  locale,
-}: {
-  name: string;
-  symbol: string;
-  price: number | null;
-  change: number | null;
-  microInsight: string | null;
-  loadingPrice: boolean;
-  loadingInsight: boolean;
-  priceUnavailable: boolean;
-  locale: string;
-}) {
-  const formattedPrice = formatNumber(price, locale);
-  const showPriceSkeleton = loadingPrice || (priceUnavailable && price === null);
-
-  return (
-    <div className="flex flex-col gap-3 border border-[#bbbbbb] bg-[#ffffff] p-4 sm:p-5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium text-[#111111]/55">{name}</span>
-        <span className="text-xs text-[#111111]/30">{symbol}</span>
-      </div>
-
-      <div className="flex items-baseline justify-between gap-2">
-        {showPriceSkeleton ? (
-          <SkeletonBlock className="h-8 w-24" />
-        ) : (
-          <span className="text-xl font-medium tracking-tight sm:text-2xl">
-            {formattedPrice !== null ? `$${formattedPrice}` : "—"}
-          </span>
-        )}
-        <ChangeBadge value={change} loading={showPriceSkeleton} />
-      </div>
-
-      {loadingInsight ? (
-        <SkeletonBlock className="mt-1 h-3 w-full" />
-      ) : microInsight ? (
-        <p className="text-xs leading-relaxed text-[#111111]/45">{microInsight}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function MacroCard({
-  name,
-  value,
-  unit,
-  date,
-  loading,
-  unavailable,
-  locale,
-}: {
-  name: string;
-  value: number | null;
-  unit: string;
-  date: string | null;
-  loading: boolean;
-  unavailable: boolean;
-  locale: string;
-}) {
-  const showValueSkeleton = loading || (unavailable && value === null);
-
-  return (
-    <div className="flex flex-col gap-3 border border-[#bbbbbb] bg-[#ffffff] p-4 sm:p-5">
-      <span className="text-sm font-medium text-[#111111]/55">{name}</span>
-      {showValueSkeleton ? (
-        <SkeletonBlock className="h-8 w-24" />
-      ) : (
-        <span className="text-xl font-medium tracking-tight sm:text-2xl">
-          {value !== null ? (
-            `${formatNumber(value, locale, unit === "índice" ? 1 : 2)}${
-              unit === "%" ? "%" : unit === "$" ? " $" : ""
-            }`
-          ) : (
-            "—"
-          )}
-        </span>
-      )}
-      {showValueSkeleton ? (
-        <SkeletonBlock className="h-3 w-16" />
-      ) : (
-        date && <span className="text-xs text-[#111111]/35">{date}</span>
-      )}
-    </div>
-  );
-}
-
-function AssetGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {children}
-    </div>
   );
 }
 
@@ -441,6 +305,9 @@ function DashboardContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [showOnboardingBanner, setShowOnboardingBanner] = useState(false);
   const [relativeUpdated, setRelativeUpdated] = useState("");
+  const [assetDetail, setAssetDetail] = useState<AssetDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data?.lastUpdated) {
@@ -570,6 +437,71 @@ function DashboardContent() {
   const analysisLoading = loading;
   const marketLoading = loading && !data;
   const sourceErrors = data?.sourceErrors ?? [];
+
+  const openAssetDetail = useCallback(
+    async (type: "stock" | "crypto", symbol: string, name: string) => {
+      setDetailLoading(true);
+      setDetailError(null);
+      setAssetDetail(null);
+
+      const microInsight = getMicroInsight(analysis, symbol);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          type,
+          symbol,
+          name,
+          locale,
+        });
+
+        const res = await fetch(`/api/asset-detail?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as {
+            error?: string;
+            redirect?: string;
+          } | null;
+
+          if (res.status === 403 && body?.redirect) {
+            router.replace(body.redirect);
+            return;
+          }
+
+          throw new Error(body?.error ?? t.assetDetail.unavailable);
+        }
+
+        const json = (await res.json()) as AssetDetail;
+        setAssetDetail({
+          ...json,
+          microInsight: json.microInsight ?? microInsight,
+        });
+      } catch (err) {
+        setDetailError(
+          err instanceof Error ? err.message : t.assetDetail.unavailable,
+        );
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [analysis, locale, router, t.assetDetail.unavailable],
+  );
+
+  function closeAssetDetail() {
+    setAssetDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
+  }
 
   const sourceErrorMessage = useMemo(() => {
     if (sourceErrors.length === 0) return null;
@@ -747,6 +679,14 @@ function DashboardContent() {
                           loadingInsight={analysisLoading}
                           priceUnavailable={finnhubUnavailable}
                           locale={numberLocale}
+                          tapHint={t.assetDetail.tapHint}
+                          onClick={() =>
+                            openAssetDetail(
+                              "stock",
+                              (item as Stock).symbol,
+                              (item as Stock).name,
+                            )
+                          }
                         />
                       ),
                   )}
@@ -781,6 +721,14 @@ function DashboardContent() {
                           loadingInsight={analysisLoading}
                           priceUnavailable={coingeckoUnavailable}
                           locale={numberLocale}
+                          tapHint={t.assetDetail.tapHint}
+                          onClick={() =>
+                            openAssetDetail(
+                              "crypto",
+                              (item as Crypto).symbol,
+                              (item as Crypto).name,
+                            )
+                          }
                         />
                       ),
                   )}
@@ -828,6 +776,13 @@ function DashboardContent() {
           )}
         </main>
       </div>
+
+      <AssetDetailPanel
+        detail={assetDetail}
+        loading={detailLoading}
+        error={detailError}
+        onClose={closeAssetDetail}
+      />
     </div>
   );
 }

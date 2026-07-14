@@ -1,9 +1,12 @@
 "use client";
 
+import AssetCard, { AssetGrid, MacroCard } from "@/components/AssetCard";
+import AssetDetailPanel from "@/components/AssetDetailPanel";
 import ExplainableText from "@/components/ExplainableText";
 import Header from "@/components/Header";
 import LanguageToggle from "@/components/LanguageToggle";
 import LearningModeToggle from "@/components/LearningModeToggle";
+import { getDemoAssetDetail } from "@/lib/demoAssetDetail";
 import {
   getDemoMarketData,
   getMicroInsight,
@@ -11,89 +14,12 @@ import {
   type DemoMacro,
   type DemoStock,
 } from "@/lib/demoData";
+import type { AssetDetail } from "@/lib/marketTypes";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import Link from "next/link";
 import { useState } from "react";
 
 type DemoTab = "markets" | "crypto" | "macro";
-
-function formatNumber(value: number, locale: string, decimals = 2) {
-  return value.toLocaleString(locale, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-}
-
-function ChangeBadge({ value }: { value: number }) {
-  const up = value >= 0;
-  return (
-    <span
-      className={`text-sm font-medium ${up ? "text-[#0f9d58]" : "text-[#d93636]"}`}
-    >
-      {up ? "+" : ""}
-      {value.toFixed(2)}%
-    </span>
-  );
-}
-
-function AssetCard({
-  name,
-  symbol,
-  price,
-  change,
-  microInsight,
-  locale,
-}: {
-  name: string;
-  symbol: string;
-  price: number;
-  change: number;
-  microInsight: string | null;
-  locale: string;
-}) {
-  return (
-    <div className="flex flex-col gap-3 border border-[#bbbbbb] bg-[#ffffff] p-4 sm:p-5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium text-[#111111]/55">{name}</span>
-        <span className="text-xs text-[#111111]/30">{symbol}</span>
-      </div>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xl font-medium tracking-tight sm:text-2xl">
-          ${formatNumber(price, locale)}
-        </span>
-        <ChangeBadge value={change} />
-      </div>
-      {microInsight ? (
-        <p className="text-xs leading-relaxed text-[#111111]/45">{microInsight}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function MacroCard({
-  name,
-  value,
-  unit,
-  date,
-  locale,
-}: {
-  name: string;
-  value: number;
-  unit: string;
-  date: string;
-  locale: string;
-}) {
-  return (
-    <div className="flex flex-col gap-3 border border-[#bbbbbb] bg-[#ffffff] p-4 sm:p-5">
-      <span className="text-sm font-medium text-[#111111]/55">{name}</span>
-      <span className="text-xl font-medium tracking-tight sm:text-2xl">
-        {formatNumber(value, locale, unit === "índice" ? 1 : 2)}
-        {unit === "%" ? "%" : unit === "$" ? " $" : ""}
-      </span>
-      <span className="text-xs text-[#111111]/35">{date}</span>
-    </div>
-  );
-}
 
 export default function DemoPage() {
   const { locale, t } = useLanguage();
@@ -103,6 +29,7 @@ export default function DemoPage() {
 
   const [activeTab, setActiveTab] = useState<DemoTab>("markets");
   const [learningMode, setLearningMode] = useState(true);
+  const [assetDetail, setAssetDetail] = useState<AssetDetail | null>(null);
 
   const markdown = [
     analysis.analysis.paragraph_1,
@@ -115,6 +42,14 @@ export default function DemoPage() {
     { id: "crypto", label: t.dashboard.tabs.crypto },
     { id: "macro", label: t.dashboard.tabs.macro },
   ];
+
+  function openAssetDetail(type: "stock" | "crypto", symbol: string) {
+    setAssetDetail(getDemoAssetDetail(locale, type, symbol));
+  }
+
+  function closeAssetDetail() {
+    setAssetDetail(null);
+  }
 
   return (
     <div className="flex min-h-screen flex-col text-[#111111]">
@@ -181,7 +116,7 @@ export default function DemoPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <AssetGrid>
           {activeTab === "markets" &&
             data.stocks.map((item: DemoStock) => (
               <AssetCard
@@ -192,6 +127,8 @@ export default function DemoPage() {
                 change={item.changePercent}
                 microInsight={getMicroInsight(analysis, item.symbol)}
                 locale={numberLocale}
+                tapHint={t.assetDetail.tapHint}
+                onClick={() => openAssetDetail("stock", item.symbol)}
               />
             ))}
 
@@ -205,6 +142,8 @@ export default function DemoPage() {
                 change={item.change24h}
                 microInsight={getMicroInsight(analysis, item.symbol)}
                 locale={numberLocale}
+                tapHint={t.assetDetail.tapHint}
+                onClick={() => openAssetDetail("crypto", item.symbol)}
               />
             ))}
 
@@ -219,7 +158,7 @@ export default function DemoPage() {
                 locale={numberLocale}
               />
             ))}
-        </div>
+        </AssetGrid>
 
         <section className="mt-10 max-w-2xl border-t border-[#bbbbbb] pt-8 sm:mt-14 sm:pt-10">
           <h3 className="text-lg font-medium tracking-tight">
@@ -245,6 +184,13 @@ export default function DemoPage() {
           </Link>
         </div>
       </main>
+
+      <AssetDetailPanel
+        detail={assetDetail}
+        loading={false}
+        error={null}
+        onClose={closeAssetDetail}
+      />
     </div>
   );
 }
