@@ -152,7 +152,7 @@ export default function StackedCards() {
               opacity: 0,
               willChange: "transform, opacity",
             }}
-            className="absolute left-1/2 top-1/2 w-[min(88vw,300px)] overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_24px_70px_-32px_rgba(17,17,17,0.16)] sm:w-[340px]"
+            className="absolute left-1/2 top-1/2 w-[300px] overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_24px_70px_-32px_rgba(17,17,17,0.16)] sm:w-[340px]"
           >
             <div className="relative aspect-square w-full bg-[var(--surface-muted)]">
               <HalftoneShape
