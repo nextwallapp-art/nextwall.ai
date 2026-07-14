@@ -24,33 +24,33 @@ export default function HomePage() {
         </div>
 
         <section className="relative flex min-h-screen flex-col overflow-hidden">
-          <main className="relative z-10 flex flex-1 flex-col justify-center px-[var(--page-gutter-wide)] pb-12 pt-24 sm:pb-16 md:pb-24 md:pt-36 lg:pt-40">
-            <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)] lg:gap-16">
+          <main className="relative z-10 flex flex-1 flex-col justify-center px-[var(--page-gutter)] pb-14 pt-[5.5rem] sm:px-[var(--page-gutter-wide)] sm:pb-16 md:pb-24 md:pt-36 lg:pt-40">
+            <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)] lg:gap-16">
               <div className="flex flex-col items-start text-left">
                 <ScrollReveal>
-                  <p className="text-[0.68rem] font-medium uppercase tracking-[0.22em] text-[var(--muted)]">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)] sm:text-[0.68rem] sm:tracking-[0.22em]">
                     {t.hero.eyebrow}
                   </p>
                 </ScrollReveal>
 
                 <AnimatedTitle
                   text={t.hero.headline}
-                  className="mt-5 w-full font-[family-name:var(--font-heading)] text-[clamp(2rem,8vw,4.5rem)] font-normal leading-[1.05] tracking-[-0.02em] text-[var(--foreground)]"
+                  className="mt-4 w-full font-[family-name:var(--font-heading)] text-[clamp(1.65rem,6.2vw,4.5rem)] font-normal leading-[1.14] tracking-[-0.02em] text-[var(--foreground)] sm:mt-5 sm:leading-[1.05]"
                 />
 
                 <ScrollReveal delayMs={120}>
-                  <p className="mt-6 max-w-md text-base leading-relaxed text-[var(--muted)] md:max-w-lg md:text-[1.05rem]">
+                  <p className="mt-5 max-w-prose text-base leading-[1.7] text-[var(--muted)] sm:mt-6 md:max-w-lg md:text-[1.05rem] md:leading-relaxed">
                     {t.hero.subtitle}
                   </p>
                 </ScrollReveal>
 
                 <ScrollReveal
                   delayMs={180}
-                  className="mt-9 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center"
+                  className="mt-8 flex w-full flex-col gap-3 sm:mt-9 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center"
                 >
                   <Link
                     href="/login"
-                    className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-[var(--foreground)] px-8 py-3.5 text-sm font-medium tracking-wide text-white transition-[transform,opacity] duration-300 hover:opacity-90 sm:w-auto md:px-10 md:py-4 md:text-base"
+                    className="group inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full bg-[var(--foreground)] px-8 py-3.5 text-base font-medium tracking-wide text-white transition-[transform,opacity] duration-300 hover:opacity-90 sm:w-auto md:px-10 md:py-4"
                   >
                     {t.hero.cta}
                     <svg
@@ -71,35 +71,35 @@ export default function HomePage() {
 
                   <Link
                     href="/demo"
-                    className="inline-flex w-full items-center justify-center rounded-full border border-[var(--border)] bg-white px-7 py-3.5 text-sm font-medium text-[var(--foreground)] transition-colors duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)] sm:w-auto md:py-4 md:text-base"
+                    className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-[var(--border)] bg-white px-7 py-3.5 text-base font-medium text-[var(--foreground)] transition-colors duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)] sm:w-auto"
                   >
                     {t.hero.ctaSecondary}
                   </Link>
                 </ScrollReveal>
 
                 <ScrollReveal delayMs={240}>
-                  <dl className="mt-10 grid w-full max-w-xl grid-cols-1 gap-4 border-t border-[var(--border)] pt-7 sm:grid-cols-3">
+                  <dl className="mt-10 grid w-full max-w-xl grid-cols-1 gap-5 border-t border-[var(--border)] pt-8 sm:grid-cols-3 sm:gap-4 sm:pt-7">
                     <div>
-                      <dt className="text-[0.65rem] uppercase tracking-[0.16em] text-[var(--muted)]">
+                      <dt className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[0.65rem] sm:tracking-[0.16em]">
                         {t.hero.stat1}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium text-[var(--foreground)]">
+                      <dd className="mt-1.5 text-base font-medium text-[var(--foreground)] sm:mt-1 sm:text-sm">
                         {t.hero.stat1Value}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[0.65rem] uppercase tracking-[0.16em] text-[var(--muted)]">
+                      <dt className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[0.65rem] sm:tracking-[0.16em]">
                         {t.hero.stat2}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium text-[var(--foreground)]">
+                      <dd className="mt-1.5 text-base font-medium text-[var(--foreground)] sm:mt-1 sm:text-sm">
                         {t.hero.stat2Value}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[0.65rem] uppercase tracking-[0.16em] text-[var(--muted)]">
+                      <dt className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[0.65rem] sm:tracking-[0.16em]">
                         {t.hero.stat3}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium text-[var(--foreground)]">
+                      <dd className="mt-1.5 text-base font-medium text-[var(--foreground)] sm:mt-1 sm:text-sm">
                         {t.hero.stat3Value}
                       </dd>
                     </div>
@@ -107,7 +107,7 @@ export default function HomePage() {
                 </ScrollReveal>
               </div>
 
-              <ScrollReveal delayMs={140} className="relative">
+              <ScrollReveal delayMs={140} className="relative hidden sm:block">
                 <LandingHeroVisual />
               </ScrollReveal>
             </div>

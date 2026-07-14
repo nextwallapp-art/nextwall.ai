@@ -18,6 +18,40 @@ function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+function FeatureCard({
+  shape,
+  title,
+  text,
+  index,
+}: {
+  shape: HalftoneShapeKind;
+  title: string;
+  text: string;
+  index: number;
+}) {
+  return (
+    <article className="w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_16px_48px_-28px_rgba(17,17,17,0.18)]">
+      <div className="relative aspect-[4/3] w-full bg-[var(--surface-muted)] sm:aspect-square">
+        <HalftoneShape
+          shape={shape}
+          className="absolute inset-0 h-full w-full"
+        />
+      </div>
+      <div className="p-5 sm:p-6">
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted)]">
+          {String(index + 1).padStart(2, "0")}
+        </p>
+        <h3 className="mt-2 font-[family-name:var(--font-heading)] text-xl font-normal leading-tight tracking-tight text-[var(--foreground)] sm:text-[1.35rem]">
+          {title}
+        </h3>
+        <p className="mt-3 text-base leading-[1.65] text-[var(--muted)] sm:text-sm sm:leading-relaxed">
+          {text}
+        </p>
+      </div>
+    </article>
+  );
+}
+
 export default function StackedCards() {
   const { t } = useLanguage();
   const cards = t.cards.items.map((item, i) => ({
@@ -32,6 +66,9 @@ export default function StackedCards() {
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
+
+    const mq = window.matchMedia("(min-width: 768px)");
+    if (!mq.matches) return;
 
     const n = cards.length;
     let raf = 0;
@@ -95,82 +132,103 @@ export default function StackedCards() {
       if (!raf) raf = requestAnimationFrame(update);
     };
 
+    const onBreakpoint = () => {
+      if (!mq.matches) return;
+      update();
+    };
+
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
+    mq.addEventListener("change", onBreakpoint);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      mq.removeEventListener("change", onBreakpoint);
     };
   }, [cards.length]);
 
   return (
-    <section
-      ref={sectionRef}
-      className="relative bg-[var(--background)]"
-      style={{ height: `${(cards.length + 2.2) * 100}vh` }}
-    >
-      <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden">
-        <div
-          ref={headlineRef}
-          className="pointer-events-none absolute inset-0 z-0"
-        >
-          {/* Mobile: text in corners, clear center for cards */}
-          <div className="absolute left-[var(--page-gutter)] top-[14%] max-w-[44vw] text-left font-[family-name:var(--font-heading)] text-[clamp(1.5rem,7vw,2rem)] font-normal leading-[0.95] tracking-tight text-[var(--foreground)] sm:hidden">
-            <span className="block">{t.cards.bgLeft1}</span>
-            <span className="mt-1 block">{t.cards.bgLeft2}</span>
-          </div>
-          <div className="absolute bottom-[14%] right-[var(--page-gutter)] max-w-[44vw] text-right font-[family-name:var(--font-heading)] text-[clamp(1.5rem,7vw,2rem)] font-normal leading-[0.95] tracking-tight text-[var(--foreground)] sm:hidden">
-            <span className="block">{t.cards.bgRight1}</span>
-            <span className="mt-1 block">{t.cards.bgRight2}</span>
-          </div>
-
-          {/* Desktop: split headline with empty center lane */}
-          <div className="hidden h-full grid-cols-[minmax(0,1fr)_min(360px,38vw)_minmax(0,1fr)] items-center gap-6 px-[var(--page-gutter-wide)] md:grid">
-            <div className="text-left font-[family-name:var(--font-heading)] text-[clamp(2.5rem,4.5vw,4.75rem)] font-normal leading-[0.95] tracking-tight text-[var(--foreground)]">
-              <span className="block">{t.cards.bgLeft1}</span>
-              <span className="mt-3 block">{t.cards.bgLeft2}</span>
-            </div>
-            <div aria-hidden="true" />
-            <div className="text-right font-[family-name:var(--font-heading)] text-[clamp(2.5rem,4.5vw,4.75rem)] font-normal leading-[0.95] tracking-tight text-[var(--foreground)]">
-              <span className="block">{t.cards.bgRight1}</span>
-              <span className="mt-3 block">{t.cards.bgRight2}</span>
-            </div>
-          </div>
+    <>
+      <section className="bg-[var(--background)] px-[var(--page-gutter)] py-14 sm:py-16 md:hidden">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
+          {t.cards.sectionEyebrow}
+        </p>
+        <h2 className="mt-3 font-[family-name:var(--font-heading)] text-[clamp(1.75rem,7vw,2.25rem)] font-normal leading-[1.12] tracking-tight text-[var(--foreground)]">
+          {t.cards.sectionTitle}
+        </h2>
+        <p className="mt-4 max-w-prose text-base leading-[1.7] text-[var(--muted)]">
+          {t.cards.sectionSubtitle}
+        </p>
+        <div className="mt-10 flex flex-col gap-8">
+          {cards.map((card, i) => (
+            <FeatureCard
+              key={`${card.shape}-mobile-${i}`}
+              shape={card.shape}
+              title={card.title}
+              text={card.text}
+              index={i}
+            />
+          ))}
         </div>
+      </section>
 
-        {cards.map((card, i) => (
-          <article
-            key={`${card.shape}-${i}`}
-            ref={(el) => {
-              cardRefs.current[i] = el;
-            }}
-            style={{
-              zIndex: 10 + i,
-              opacity: 0,
-              willChange: "transform, opacity",
-            }}
-            className="absolute left-1/2 top-1/2 w-[300px] overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_24px_70px_-32px_rgba(17,17,17,0.16)] sm:w-[340px]"
+      <section
+        ref={sectionRef}
+        className="relative hidden bg-[var(--background)] md:block"
+        style={{ height: `${(cards.length + 2.2) * 100}vh` }}
+      >
+        <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden">
+          <div
+            ref={headlineRef}
+            className="pointer-events-none absolute inset-0 z-0"
           >
-            <div className="relative aspect-square w-full bg-[var(--surface-muted)]">
-              <HalftoneShape
-                shape={card.shape}
-                className="absolute inset-0 h-full w-full"
-              />
+            <div className="grid h-full grid-cols-[minmax(0,1fr)_min(360px,38vw)_minmax(0,1fr)] items-center gap-6 px-[var(--page-gutter-wide)]">
+              <div className="text-left font-[family-name:var(--font-heading)] text-[clamp(2.5rem,4.5vw,4.75rem)] font-normal leading-[0.95] tracking-tight text-[var(--foreground)]">
+                <span className="block">{t.cards.bgLeft1}</span>
+                <span className="mt-3 block">{t.cards.bgLeft2}</span>
+              </div>
+              <div aria-hidden="true" />
+              <div className="text-right font-[family-name:var(--font-heading)] text-[clamp(2.5rem,4.5vw,4.75rem)] font-normal leading-[0.95] tracking-tight text-[var(--foreground)]">
+                <span className="block">{t.cards.bgRight1}</span>
+                <span className="mt-3 block">{t.cards.bgRight2}</span>
+              </div>
             </div>
-            <div className="p-6">
-              <h3 className="font-[family-name:var(--font-heading)] text-xl font-normal tracking-tight text-[var(--foreground)]">
-                {card.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-                {card.text}
-              </p>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
+          </div>
+
+          {cards.map((card, i) => (
+            <article
+              key={`${card.shape}-${i}`}
+              ref={(el) => {
+                cardRefs.current[i] = el;
+              }}
+              style={{
+                zIndex: 10 + i,
+                opacity: 0,
+                willChange: "transform, opacity",
+              }}
+              className="absolute left-1/2 top-1/2 w-[300px] overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_24px_70px_-32px_rgba(17,17,17,0.16)] lg:w-[340px]"
+            >
+              <div className="relative aspect-square w-full bg-[var(--surface-muted)]">
+                <HalftoneShape
+                  shape={card.shape}
+                  className="absolute inset-0 h-full w-full"
+                />
+              </div>
+              <div className="p-6">
+                <h3 className="font-[family-name:var(--font-heading)] text-xl font-normal tracking-tight text-[var(--foreground)]">
+                  {card.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                  {card.text}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }

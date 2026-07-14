@@ -4,20 +4,24 @@ export const translations = {
   en: {
     header: {
       login: "Log in",
+      menuOpen: "Open menu",
+      menuClose: "Close menu",
+      menuLabel: "Menu",
     },
     hero: {
-      eyebrow: "For investors who ask why",
-      headline: "The news tells you what. We tell you why.",
+      eyebrow: "Investment with context",
+      headline:
+        "If you don't know why your investments rise or fall, you're not investing — you're gambling.",
       subtitle:
-        "Understand why your investments move — in plain language, powered by live market data.",
+        "NextWall connects every price move to the macro story, sector trends, and company drivers behind it — in plain language, with live data.",
       cta: "Get started",
       ctaSecondary: "Try the demo",
       stat1: "Live data",
       stat1Value: "24/7",
-      stat2: "Assets",
+      stat2: "Your assets",
       stat2Value: "Stocks · ETFs · Crypto",
-      stat3: "Analysis",
-      stat3Value: "Plain language",
+      stat3: "Why it moves",
+      stat3Value: "Not just what",
     },
     landing: {
       ticker: [
@@ -53,7 +57,7 @@ export const translations = {
           },
           {
             title: "Made for first moves",
-            text: "Designed for 18–25 investors learning the game — confident, calm, never condescending.",
+            text: "Every asset has a story — we connect price moves to the macro, sector, and company drivers behind them.",
             tag: "04",
           },
         ],
@@ -69,6 +73,10 @@ export const translations = {
       },
     },
     cards: {
+      sectionEyebrow: "How it works",
+      sectionTitle: "Context for every move",
+      sectionSubtitle:
+        "Three ways NextWall turns market noise into something you can actually understand.",
       bgLeft1: "Markets",
       bgRight1: "move.",
       bgLeft2: "Now you know",
@@ -217,20 +225,24 @@ export const translations = {
   es: {
     header: {
       login: "Iniciar sesión",
+      menuOpen: "Abrir menú",
+      menuClose: "Cerrar menú",
+      menuLabel: "Menú",
     },
     hero: {
-      eyebrow: "Para inversores que preguntan por qué",
-      headline: "Las noticias te dicen el qué. Nosotros te decimos por qué.",
+      eyebrow: "Inversión con contexto",
+      headline:
+        "Si no sabes por qué tus inversiones suben o bajan, no estás invirtiendo: estás apostando.",
       subtitle:
-        "Entiende por qué se mueven tus inversiones — en lenguaje claro, con datos de mercado en vivo.",
+        "NextWall conecta cada movimiento de precio con la historia macro, el sector y los factores de la empresa — en lenguaje claro y con datos en vivo.",
       cta: "Empieza ahora",
       ctaSecondary: "Probar la demo",
       stat1: "Datos en vivo",
       stat1Value: "24/7",
-      stat2: "Activos",
+      stat2: "Tus activos",
       stat2Value: "Acciones · ETFs · Crypto",
-      stat3: "Análisis",
-      stat3Value: "Lenguaje claro",
+      stat3: "Por qué se mueve",
+      stat3Value: "No solo el qué",
     },
     landing: {
       ticker: [
@@ -266,7 +278,7 @@ export const translations = {
           },
           {
             title: "Hecho para tus primeros pasos",
-            text: "Diseñado para inversores de 18–25 que aprenden el juego — con confianza, calma y sin condescendencia.",
+            text: "Cada activo tiene una historia — conectamos los movimientos con los factores macro, sectoriales y de empresa que los explican.",
             tag: "04",
           },
         ],
@@ -283,6 +295,10 @@ export const translations = {
       },
     },
     cards: {
+      sectionEyebrow: "Cómo funciona",
+      sectionTitle: "Contexto para cada movimiento",
+      sectionSubtitle:
+        "Tres formas en las que NextWall convierte el ruido del mercado en algo que puedes entender.",
       bgLeft1: "Los mercados",
       bgRight1: "se mueven.",
       bgLeft2: "Ahora sabes",

@@ -56,7 +56,7 @@ export default function DemoPage() {
       <Header showLoginButton />
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-[var(--page-gutter)] pb-[calc(6rem+var(--safe-bottom))] pt-2 sm:pt-4 md:px-10">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
           <LearningModeToggle
             enabled={learningMode}
             onChange={setLearningMode}
@@ -65,7 +65,7 @@ export default function DemoPage() {
           <LanguageToggle />
         </div>
 
-        <div className="mb-8 border border-[#111111]/15 bg-[#fafafa] px-4 py-4 sm:px-5">
+        <div className="mb-10 rounded-xl border border-[#111111]/15 bg-[#fafafa] p-5 sm:mb-8 sm:rounded-none sm:p-4 sm:px-5">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#111111]/45">
             {t.demo.badge}
           </p>
