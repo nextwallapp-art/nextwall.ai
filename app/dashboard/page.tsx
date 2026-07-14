@@ -134,7 +134,7 @@ function DashboardTabs({
   ];
 
   return (
-    <div className="-mx-4 mb-8 flex gap-4 overflow-x-auto border-b border-[#bbbbbb] px-4 scrollbar-none sm:mx-0 sm:gap-6 sm:px-0">
+    <div className="-mx-[var(--page-gutter)] mb-8 flex gap-5 overflow-x-auto border-b border-[#bbbbbb] px-[var(--page-gutter)] pb-1 scrollbar-none sm:mx-0 sm:gap-6 sm:px-0">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -562,7 +562,7 @@ function DashboardContent() {
           <LanguageToggle />
         </div>
 
-        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-[calc(6rem+var(--safe-bottom))] sm:px-6 md:px-10">
+        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-[var(--page-gutter)] pb-[calc(6rem+var(--safe-bottom))] sm:px-6 md:px-10">
           {showSuccess && (
             <p className="animate-fade-up mb-8 text-lg font-medium">
               {t.dashboard.success}

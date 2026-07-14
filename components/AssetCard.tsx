@@ -73,7 +73,7 @@ export default function AssetCard({
       tabIndex={interactive ? 0 : undefined}
       onClick={onClick}
       onKeyDown={handleKeyDown}
-      className={`flex flex-col gap-3 border border-[#bbbbbb] bg-[#ffffff] p-4 text-left transition-colors sm:p-5 ${
+      className={`flex flex-col gap-4 border border-[#bbbbbb] bg-[#ffffff] p-5 text-left transition-colors sm:gap-3 sm:p-5 ${
         interactive
           ? "cursor-pointer hover:border-[#111111]/45 hover:shadow-[0_8px_24px_-18px_rgba(17,17,17,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]/30"
           : ""
@@ -98,7 +98,7 @@ export default function AssetCard({
       {loadingInsight ? (
         <SkeletonBlock className="mt-1 h-3 w-full" />
       ) : microInsight ? (
-        <p className="text-xs leading-relaxed text-[#111111]/45">{microInsight}</p>
+        <p className="text-sm leading-[1.6] text-[#111111]/45 sm:text-xs sm:leading-relaxed">{microInsight}</p>
       ) : interactive ? (
         <p className="text-xs text-[#111111]/35">{tapHint}</p>
       ) : null}
@@ -152,7 +152,7 @@ export function MacroCard({
 
 export function AssetGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
       {children}
     </div>
   );
