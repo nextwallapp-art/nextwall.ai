@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/translations";
+import type { StructuredAnalysis } from "@/lib/marketAnalysis";
 
 export type DemoStock = {
   symbol: string;
@@ -22,23 +23,7 @@ export type DemoMacro = {
   date: string;
 };
 
-export type DemoTerm = {
-  word: string;
-  beginner: string;
-  intermediate: string;
-  advanced: string;
-};
-
-export type DemoAnalysis = {
-  headline: string;
-  asset_insights: { symbol: string; name: string; micro_insight: string }[];
-  analysis: {
-    paragraph_1: string;
-    paragraph_2: string;
-    paragraph_3: string;
-  };
-  terms: DemoTerm[];
-};
+export type DemoAnalysis = StructuredAnalysis;
 
 export type DemoMarketData = {
   stocks: DemoStock[];
@@ -49,7 +34,154 @@ export type DemoMarketData = {
   analysis: DemoAnalysis;
 };
 
-const demoByLocale: Record<Locale, DemoMarketData> = {
+const demoAnalysisEn: DemoAnalysis = {
+  headline: "Tech leads while rate-cut hopes keep gold steady.",
+  three_layers: {
+    layer_1_what_happened: {
+      title: "What happened in the world?",
+      events: [
+        {
+          event: "Markets are balancing strong mega-cap earnings against sticky inflation.",
+          where: "macro",
+          impact_on_user:
+            "Your Nvidia and Apple positions move in opposite directions — growth is selective, not broad.",
+          evidence: "Demo macro: Fed funds 5.33%, CPI 2.9%",
+        },
+        {
+          event: "Rate-cut expectations flicker after soft labor signals.",
+          where: "macro",
+          impact_on_user: "Bitcoin in your mix tends to bounce when yields ease slightly.",
+          evidence: "BTC +1.4% in demo data",
+        },
+      ],
+    },
+    layer_2_what_price_says: {
+      title: "What does price say today?",
+      technical:
+        "Nvidia is up ~2% while Apple pulls back ~1.2%. SPY is flat — the market is cautious, not panicked. Gold ETF holds firm near resistance.",
+      onchain:
+        "Bitcoin shows moderate 30d momentum; demo proxy suggests holders are not in extreme fear or greed.",
+      pattern:
+        "Similar setups in 2023 saw sharp tech swings followed by recoveries when earnings confirmed the growth story.",
+    },
+    layer_3_what_experts_think: {
+      title: "What do the pros think?",
+      fundamental:
+        "Fundamental analysts focus on whether AI capex can sustain chip valuations at current multiples.",
+      quants:
+        "Quant models flag elevated volatility in mega-cap tech but no systemic stress signal.",
+      range:
+        "Demo consensus: more bulls than bears on growth, but disagreement on magnitude of next leg up.",
+      humility:
+        "Even top analysts misread 2023 rate paths — watch data, not headlines.",
+    },
+  },
+  narrative:
+    "Your mix of tech, broad ETFs and Bitcoin is split today: Nvidia and Solana are up, while Apple and Tesla pull back. That usually means investors still want growth, but selectively.\n\nInflation is cooling but not gone, so the Fed keeps rates high. When cut hopes flicker, growth stocks and crypto bounce; gold holds when direction is unclear.\n\nHistorically, sideways markets dominate when rates stay above 5% and inflation hovers near 3%. The lesson: notice which story drives the day — rates, earnings, or risk appetite.",
+  action_insight:
+    "If this pattern repeats, watch the next CPI print and Fed speaker tone — not every daily tick. Track whether today's driver is rates, earnings, or risk appetite.",
+  terms: [
+    {
+      word: "Fed funds rate",
+      beginner:
+        "The interest rate banks charge each other overnight — when it rises, borrowing gets more expensive for everyone.",
+      intermediate:
+        "The Fed's main policy rate; higher rates slow the economy and often pressure stock valuations.",
+      advanced:
+        "Effective lower bound of the Fed target range; anchors discount rates in equity and credit pricing.",
+    },
+    {
+      word: "risk appetite",
+      beginner:
+        "How willing investors are to buy risky assets like stocks and crypto versus playing it safe.",
+      intermediate:
+        "Market tolerance for volatility; rises when macro fears fade and liquidity improves.",
+      advanced:
+        "Cross-asset factor linking equity beta, credit spreads, and crypto correlation regimes.",
+    },
+  ],
+  meta: {
+    confidence: "medium",
+    sources: "Demo data — not live GDELT/FRED/Finnhub",
+    last_updated: new Date().toISOString(),
+  },
+};
+
+const demoAnalysisEs: DemoAnalysis = {
+  ...demoAnalysisEn,
+  headline: "El tech lidera mientras el oro se mantiene firme.",
+  three_layers: {
+    layer_1_what_happened: {
+      title: "¿Qué pasó en el mundo?",
+      events: [
+        {
+          event: "Los mercados equilibran resultados fuertes de mega caps con inflación persistente.",
+          where: "macro",
+          impact_on_user:
+            "Tus posiciones en Nvidia y Apple van en direcciones opuestas — el crecimiento es selectivo.",
+          evidence: "Macro demo: tipos Fed 5,33%, IPC 2,9%",
+        },
+        {
+          event: "Parpadean las expectativas de recorte tras señales laborales más débiles.",
+          where: "macro",
+          impact_on_user: "Bitcoin en tu mix suele repuntar cuando ceden ligeramente los tipos.",
+          evidence: "BTC +1,4% en datos demo",
+        },
+      ],
+    },
+    layer_2_what_price_says: {
+      title: "¿Qué dice el precio hoy?",
+      technical:
+        "Nvidia sube ~2% mientras Apple corrige ~1,2%. SPY está plano — mercado cauteloso, no en pánico. El ETF de oro se mantiene firme.",
+      onchain:
+        "Bitcoin muestra momentum 30d moderado; proxy demo sin miedo ni euforia extrema.",
+      pattern:
+        "En 2023, setups similares trajeron swings fuertes en tech y recuperaciones cuando los beneficios confirmaron el relato.",
+    },
+    layer_3_what_experts_think: {
+      title: "¿Qué piensan los expertos?",
+      fundamental:
+        "Los fundamentales miran si el capex en IA puede sostener múltiplos actuales en chips.",
+      quants:
+        "Modelos cuantitativos marcan volatilidad elevada en mega caps pero sin estrés sistémico.",
+      range:
+        "Consenso demo: más alcistas que bajistas en crecimiento, pero desacuerdo en la magnitud del siguiente tramo.",
+      humility:
+        "Incluso los mejores analistas fallaron la trayectoria de tipos en 2023 — mira datos, no titulares.",
+    },
+  },
+  narrative:
+    "Tu mezcla de tech, ETFs amplios y Bitcoin está dividida hoy: Nvidia y Solana suben, Apple y Tesla corrigen. Eso suele significar apuesta selectiva por crecimiento.\n\nLa inflación enfría pero no desaparece; la Fed mantiene tipos altos. Cuando parpadean recortes, repuntan growth y crypto; el oro aguanta cuando la dirección no está clara.\n\nHistóricamente, mercados laterales dominan con tipos >5% e inflación ~3%. La lección: identifica qué historia manda hoy — tipos, resultados o apetito por riesgo.",
+  action_insight:
+    "Si el patrón se repite, vigila el próximo IPC y el tono de la Fed — no cada tick diario. Identifica si mandan tipos, resultados o apetito por riesgo.",
+  terms: [
+    {
+      word: "Fed",
+      beginner:
+        "El banco central de EE.UU.; sube o baja tipos para controlar inflación y empleo.",
+      intermediate:
+        "Reserva Federal; sus decisiones impactan acciones, bonos y divisas globalmente.",
+      advanced:
+        "Autoridad monetaria cuyo dot plot guía curva de tipos y múltiplos de equity.",
+    },
+    {
+      word: "apetito por riesgo",
+      beginner:
+        "Disposición a comprar activos arriesgados frente a refugios seguros.",
+      intermediate:
+        "Tolerancia a la volatilidad; sube cuando mejora la liquidez y bajan miedos macro.",
+      advanced:
+        "Factor cross-asset que correlaciona beta equity, spreads de crédito y regímenes crypto.",
+    },
+  ],
+  meta: {
+    confidence: "medio",
+    sources: "Datos demo — no GDELT/FRED/Finnhub en vivo",
+    last_updated: new Date().toISOString(),
+  },
+};
+
+const demoByLocale: Record<Locale, Omit<DemoMarketData, "lastUpdated">> = {
   en: {
     stocks: [
       { symbol: "AAPL", name: "Apple", price: 213.42, changePercent: -1.24 },
@@ -65,104 +197,13 @@ const demoByLocale: Record<Locale, DemoMarketData> = {
       { symbol: "SOL", name: "Solana", price: 148.2, change24h: 3.11 },
     ],
     macro: [
-      {
-        id: "fed_funds",
-        name: "Fed funds rate",
-        value: 5.33,
-        unit: "%",
-        date: "Jun 2026",
-      },
-      {
-        id: "cpi",
-        name: "CPI (YoY)",
-        value: 2.9,
-        unit: "%",
-        date: "May 2026",
-      },
-      {
-        id: "unemployment",
-        name: "Unemployment",
-        value: 4.1,
-        unit: "%",
-        date: "May 2026",
-      },
-      {
-        id: "vix",
-        name: "VIX",
-        value: 14.8,
-        unit: "índice",
-        date: "Today",
-      },
+      { id: "fed_funds", name: "Fed funds rate", value: 5.33, unit: "%", date: "Jun 2026" },
+      { id: "cpi", name: "CPI (YoY)", value: 2.9, unit: "%", date: "May 2026" },
+      { id: "unemployment", name: "Unemployment", value: 4.1, unit: "%", date: "May 2026" },
+      { id: "vix", name: "VIX", value: 14.8, unit: "índice", date: "Today" },
     ],
     marketOpen: true,
-    lastUpdated: new Date().toISOString(),
-    analysis: {
-      headline: "Tech leads while rate-cut hopes keep gold steady.",
-      asset_insights: [
-        {
-          symbol: "NVDA",
-          name: "Nvidia",
-          micro_insight: "AI demand headlines are lifting chip leaders today.",
-        },
-        {
-          symbol: "AAPL",
-          name: "Apple",
-          micro_insight: "Profit-taking after a strong week in mega-cap tech.",
-        },
-        {
-          symbol: "SPY",
-          name: "S&P 500 ETF",
-          micro_insight: "Broad market flat as investors wait for CPI clarity.",
-        },
-        {
-          symbol: "BTC",
-          name: "Bitcoin",
-          micro_insight: "Risk appetite is improving as yields ease slightly.",
-        },
-        {
-          symbol: "GLD",
-          name: "Gold ETF",
-          micro_insight: "Hedge demand stays firm ahead of Fed speakers.",
-        },
-      ],
-      analysis: {
-        paragraph_1:
-          "Your mix of tech, broad ETFs and Bitcoin is split today: Nvidia and Solana are up, while Apple and Tesla pull back. That pattern usually means investors are still betting on growth, but not blindly — they're trimming names that ran up fast. Your S&P and Nasdaq ETFs are barely moving, which tells you the overall mood is cautious, not panicked.",
-        paragraph_2:
-          "The macro backdrop explains a lot of this. Inflation is cooling but not gone, so the Fed is still keeping rates high — that makes borrowing expensive for companies and households. When rate-cut hopes flicker (like after soft jobs data), growth stocks and crypto tend to bounce. Gold in your portfolio is doing its job: it holds up when people aren't sure whether to be optimistic or defensive.",
-        paragraph_3:
-          "Historically, when rates stay above 5% and inflation hovers near 3%, markets chop sideways for weeks rather than crash or rally hard. For a beginner portfolio like this demo, the lesson isn't to react to every daily move — it's to notice which story is driving the day: rates, earnings, or risk appetite. That's exactly what NextWall tracks for your real holdings once you sign up.",
-      },
-      terms: [
-        {
-          word: "Fed funds rate",
-          beginner:
-            "The interest rate banks charge each other overnight — when it goes up, borrowing gets more expensive for everyone.",
-          intermediate:
-            "The Fed's main policy rate; higher rates slow the economy and often pressure stock valuations.",
-          advanced:
-            "The effective lower bound of the Fed's target range; influences the discount rate used in equity and credit pricing.",
-        },
-        {
-          word: "CPI",
-          beginner:
-            "A monthly report that tracks how much everyday prices (food, rent, gas) have changed.",
-          intermediate:
-            "Consumer Price Index — the most watched inflation gauge for Fed policy decisions.",
-          advanced:
-            "Headline and core CPI drive real yield expectations and front-end rate pricing.",
-        },
-        {
-          word: "risk appetite",
-          beginner:
-            "How willing investors are to buy risky assets like stocks and crypto versus playing it safe.",
-          intermediate:
-            "The market's tolerance for volatility; rises when macro fears fade and liquidity improves.",
-          advanced:
-            "Cross-asset factor linking equity beta, credit spreads, and crypto correlation regimes.",
-        },
-      ],
-    },
+    analysis: demoAnalysisEn,
   },
   es: {
     stocks: [
@@ -179,104 +220,13 @@ const demoByLocale: Record<Locale, DemoMarketData> = {
       { symbol: "SOL", name: "Solana", price: 148.2, change24h: 3.11 },
     ],
     macro: [
-      {
-        id: "fed_funds",
-        name: "Tipo Fed",
-        value: 5.33,
-        unit: "%",
-        date: "Jun 2026",
-      },
-      {
-        id: "cpi",
-        name: "IPC (interanual)",
-        value: 2.9,
-        unit: "%",
-        date: "May 2026",
-      },
-      {
-        id: "unemployment",
-        name: "Desempleo",
-        value: 4.1,
-        unit: "%",
-        date: "May 2026",
-      },
-      {
-        id: "vix",
-        name: "VIX",
-        value: 14.8,
-        unit: "índice",
-        date: "Hoy",
-      },
+      { id: "fed_funds", name: "Tipo Fed", value: 5.33, unit: "%", date: "Jun 2026" },
+      { id: "cpi", name: "IPC (interanual)", value: 2.9, unit: "%", date: "May 2026" },
+      { id: "unemployment", name: "Desempleo", value: 4.1, unit: "%", date: "May 2026" },
+      { id: "vix", name: "VIX", value: 14.8, unit: "índice", date: "Hoy" },
     ],
     marketOpen: true,
-    lastUpdated: new Date().toISOString(),
-    analysis: {
-      headline: "El tech lidera mientras el oro se mantiene firme.",
-      asset_insights: [
-        {
-          symbol: "NVDA",
-          name: "Nvidia",
-          micro_insight: "La demanda de IA impulsa hoy a las chipmakers.",
-        },
-        {
-          symbol: "AAPL",
-          name: "Apple",
-          micro_insight: "Toma de beneficios tras una semana fuerte en mega caps.",
-        },
-        {
-          symbol: "SPY",
-          name: "ETF S&P 500",
-          micro_insight: "Mercado plano mientras se espera claridad sobre inflación.",
-        },
-        {
-          symbol: "BTC",
-          name: "Bitcoin",
-          micro_insight: "Mejora el apetito por riesgo al ceder ligeramente los tipos.",
-        },
-        {
-          symbol: "GLD",
-          name: "ETF Oro",
-          micro_insight: "Demanda defensiva firme antes de intervenciones de la Fed.",
-        },
-      ],
-      analysis: {
-        paragraph_1:
-          "Tu mezcla de tech, ETFs amplios y Bitcoin está dividida hoy: Nvidia y Solana suben, mientras Apple y Tesla corrigen. Eso suele significar que los inversores siguen apostando por crecimiento, pero con selectividad — recortan nombres que subieron mucho. Tus ETFs del S&P y Nasdaq apenas se mueven, señal de un humor cauteloso, no de pánico.",
-        paragraph_2:
-          "El contexto macro lo explica. La inflación enfría pero no desaparece, así que la Fed mantiene tipos altos — eso encarece el crédito para empresas y familias. Cuando parpadean las esperanzas de recorte (por ejemplo tras datos laborales débiles), suelen repuntar acciones de crecimiento y crypto. El oro cumple su papel: se mantiene cuando nadie tiene claro si conviene ser optimista o defensivo.",
-        paragraph_3:
-          "Históricamente, con tipos por encima del 5% e inflación cerca del 3%, los mercados laterales duran semanas sin crash ni rally fuerte. En una cartera principiante como esta demo, la lección no es reaccionar a cada movimiento diario — es identificar qué historia manda hoy: tipos, resultados o apetito por riesgo. Eso es lo que NextWall hace con tus activos reales cuando te registras.",
-      },
-      terms: [
-        {
-          word: "Fed",
-          beginner:
-            "El banco central de EE.UU.; sube o baja tipos para controlar inflación y empleo.",
-          intermediate:
-            "Reserva Federal; sus decisiones de tipos impactan acciones, bonos y divisas globalmente.",
-          advanced:
-            "Autoridad monetaria cuyo dot plot y minutes guían la curva de tipos y múltiplos de equity.",
-        },
-        {
-          word: "IPC",
-          beginner:
-            "Informe mensual que mide cuánto han subido precios de consumo (comida, alquiler, gasolina).",
-          intermediate:
-            "Índice de Precios al Consumo — indicador clave de inflación para la política de la Fed.",
-          advanced:
-            "Headline vs core IPC condicionan expectativas de tipos reales y pricing del front-end.",
-        },
-        {
-          word: "apetito por riesgo",
-          beginner:
-            "Cuánta disposición hay a comprar activos arriesgados (acciones, crypto) frente a refugios seguros.",
-          intermediate:
-            "Tolerancia del mercado a la volatilidad; sube cuando mejora la liquidez y bajan los miedos macro.",
-          advanced:
-            "Factor cross-asset que correlaciona beta equity, spreads de crédito y regímenes crypto.",
-        },
-      ],
-    },
+    analysis: demoAnalysisEs,
   },
 };
 
@@ -285,6 +235,13 @@ export function getDemoMarketData(locale: Locale): DemoMarketData {
   return {
     ...data,
     lastUpdated: new Date().toISOString(),
+    analysis: {
+      ...data.analysis,
+      meta: {
+        ...data.analysis.meta,
+        last_updated: new Date().toISOString(),
+      },
+    },
   };
 }
 
@@ -292,8 +249,13 @@ export function getMicroInsight(
   analysis: DemoAnalysis,
   symbol: string,
 ): string | null {
-  const match = analysis.asset_insights.find(
-    (item) => item.symbol.toUpperCase() === symbol.toUpperCase(),
-  );
-  return match?.micro_insight ?? null;
+  const upper = symbol.toUpperCase();
+  for (const event of analysis.three_layers.layer_1_what_happened.events) {
+    const haystack =
+      `${event.event} ${event.impact_on_user} ${event.evidence}`.toUpperCase();
+    if (haystack.includes(upper)) {
+      return event.impact_on_user || event.event;
+    }
+  }
+  return null;
 }

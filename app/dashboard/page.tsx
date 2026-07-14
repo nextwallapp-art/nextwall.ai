@@ -3,15 +3,16 @@
 import AssetCard, { AssetGrid, MacroCard, SkeletonBlock } from "@/components/AssetCard";
 import AssetDetailPanel from "@/components/AssetDetailPanel";
 import DashboardSidebar from "@/components/DashboardSidebar";
-import ExplainableText from "@/components/ExplainableText";
 import LanguageToggle from "@/components/LanguageToggle";
 import LearningModeToggle from "@/components/LearningModeToggle";
+import ThreeLayersAnalysis from "@/components/ThreeLayersAnalysis";
 import {
   dismissOnboardingBanner,
   shouldShowOnboardingBanner,
 } from "@/lib/onboardingBanner";
 import { formatRelativeUpdated } from "@/lib/formatRelativeTime";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { getAssetMicroInsight, type StructuredAnalysis } from "@/lib/marketAnalysis";
 import type { AssetDetail } from "@/lib/marketTypes";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -45,24 +46,9 @@ type Macro = {
   date: string | null;
 };
 
-type StructuredAnalysis = {
-  headline: string;
-  asset_insights: {
-    symbol: string;
-    name: string;
-    micro_insight: string;
-  }[];
-  analysis: {
-    paragraph_1: string;
-    paragraph_2: string;
-    paragraph_3: string;
-  };
-  terms: {
-    word: string;
-    beginner: string;
-    intermediate: string;
-    advanced: string;
-  }[];
+type UserProfile = {
+  experience_level: string | null;
+  last_onboarding_date: string | null;
 };
 
 type DataSource = "finnhub" | "coingecko" | "fred";
@@ -77,22 +63,6 @@ type MarketData = {
   sourceErrors?: DataSource[];
 };
 
-type UserProfile = {
-  experience_level: string | null;
-  last_onboarding_date: string | null;
-};
-
-function getMicroInsight(
-  analysis: StructuredAnalysis | null,
-  symbol: string,
-): string | null {
-  if (!analysis) return null;
-  const match = analysis.asset_insights.find(
-    (item) => item.symbol.toUpperCase() === symbol.toUpperCase(),
-  );
-  return match?.micro_insight ?? null;
-}
-
 function HeadlineSection({
   headline,
   loading,
@@ -103,8 +73,8 @@ function HeadlineSection({
   if (loading) {
     return (
       <div className="mb-10 space-y-3">
-        <SkeletonBlock className="h-8 w-full max-w-xl" />
-        <SkeletonBlock className="h-8 w-full max-w-lg" />
+        <SkeletonBlock className="h-9 w-full max-w-xl" />
+        <SkeletonBlock className="h-9 w-full max-w-lg" />
       </div>
     );
   }
@@ -112,7 +82,7 @@ function HeadlineSection({
   if (!headline) return null;
 
   return (
-    <h2 className="mb-8 text-xl font-medium leading-tight tracking-tight text-[#111111] sm:mb-10 sm:text-2xl md:text-[2rem]">
+    <h2 className="mb-8 text-[2rem] font-bold leading-tight tracking-tight text-[#111111] sm:mb-10">
       {headline}
     </h2>
   );
@@ -150,61 +120,6 @@ function DashboardTabs({
         </button>
       ))}
     </div>
-  );
-}
-
-function DeepAnalysisSection({
-  analysis,
-  loading,
-  title,
-  unavailableLabel,
-  learningMode,
-  experienceLevel,
-}: {
-  analysis: StructuredAnalysis | null;
-  loading: boolean;
-  title: string;
-  unavailableLabel: string;
-  learningMode: boolean;
-  experienceLevel: string | null;
-}) {
-  const markdown = analysis
-    ? [
-        analysis.analysis.paragraph_1,
-        analysis.analysis.paragraph_2,
-        analysis.analysis.paragraph_3,
-      ].join("\n\n")
-    : "";
-
-  return (
-    <section className="mt-10 max-w-2xl border-t border-[#bbbbbb] pt-8 sm:mt-14 sm:pt-10">
-      <h3 className="text-lg font-medium tracking-tight">{title}</h3>
-
-      {loading ? (
-        <div className="mt-6 space-y-6">
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-11/12" />
-          <SkeletonBlock className="mt-4 h-4 w-full" />
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-10/12" />
-          <SkeletonBlock className="mt-4 h-4 w-full" />
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-9/12" />
-        </div>
-      ) : analysis ? (
-        <div className="mt-6">
-          <ExplainableText
-            text={markdown}
-            terms={analysis.terms}
-            experienceLevel={experienceLevel}
-            enabled={learningMode}
-          />
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-[#111111]/45">{unavailableLabel}</p>
-      )}
-    </section>
   );
 }
 
@@ -252,8 +167,7 @@ function DashboardPageSkeleton() {
   return (
     <div className="w-full">
       <div className="mb-10 space-y-3">
-        <SkeletonBlock className="h-8 w-full max-w-xl" />
-        <SkeletonBlock className="h-8 w-full max-w-lg" />
+        <SkeletonBlock className="h-9 w-full max-w-xl" />
       </div>
 
       <div className="mb-8 flex gap-6 border-b border-[#bbbbbb] pb-3">
@@ -275,13 +189,18 @@ function DashboardPageSkeleton() {
         ))}
       </AssetGrid>
 
-      <div className="mt-14 border-t border-[#bbbbbb] pt-10">
-        <SkeletonBlock className="h-5 w-40" />
-        <div className="mt-6 space-y-4">
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-11/12" />
-        </div>
+      <div className="mt-10 grid gap-5 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex flex-col gap-4 border border-[#bbbbbb] bg-[#ffffff] p-5"
+          >
+            <SkeletonBlock className="h-5 w-40" />
+            <SkeletonBlock className="h-4 w-full" />
+            <SkeletonBlock className="h-4 w-full" />
+            <SkeletonBlock className="h-4 w-10/12" />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -444,7 +363,7 @@ function DashboardContent() {
       setDetailError(null);
       setAssetDetail(null);
 
-      const microInsight = getMicroInsight(analysis, symbol);
+      const microInsight = getAssetMicroInsight(analysis, symbol);
 
       const {
         data: { session },
@@ -676,7 +595,7 @@ function DashboardContent() {
                           symbol={(item as Stock).symbol}
                           price={(item as Stock).price}
                           change={(item as Stock).changePercent}
-                          microInsight={getMicroInsight(
+                          microInsight={getAssetMicroInsight(
                             analysis,
                             (item as Stock).symbol,
                           )}
@@ -718,7 +637,7 @@ function DashboardContent() {
                           symbol={(item as Crypto).symbol}
                           price={(item as Crypto).price}
                           change={(item as Crypto).change24h}
-                          microInsight={getMicroInsight(
+                          microInsight={getAssetMicroInsight(
                             analysis,
                             (item as Crypto).symbol,
                           )}
@@ -769,11 +688,13 @@ function DashboardContent() {
                 </AssetGrid>
               )}
 
-              <DeepAnalysisSection
+              <ThreeLayersAnalysis
                 analysis={analysis}
                 loading={analysisLoading}
-                title={t.dashboard.analysisTitle}
                 unavailableLabel={t.dashboard.analysisUnavailable}
+                actionInsightLabel={t.dashboard.actionInsight}
+                narrativeLabel={t.dashboard.narrativeTitle}
+                layerLabels={t.dashboard.layers}
                 learningMode={learningMode}
                 experienceLevel={profile?.experience_level ?? null}
               />

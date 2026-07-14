@@ -184,6 +184,14 @@ export const translations = {
       generalMacro:
         "Key macro indicators that explain why markets move the way they do.",
       analysisTitle: "What's going on?",
+      narrativeTitle: "The full picture",
+      actionInsight: "What to watch",
+      layers: {
+        world: "World",
+        price: "Price",
+        experts: "Experts",
+      },
+      didYouKnow: "Did you know?",
       analyzingMarkets: "Analyzing the markets…",
       analysisUnavailable: "Analysis is not available right now.",
       noData: "no data",
@@ -407,6 +415,14 @@ export const translations = {
       generalMacro:
         "Indicadores macro clave que explican por qué los mercados se mueven como lo hacen.",
       analysisTitle: "¿Qué está pasando?",
+      narrativeTitle: "La foto completa",
+      actionInsight: "Qué vigilar",
+      layers: {
+        world: "Mundo",
+        price: "Precio",
+        experts: "Expertos",
+      },
+      didYouKnow: "¿Sabías que…?",
       analyzingMarkets: "Analizando los mercados…",
       analysisUnavailable: "El análisis no está disponible en este momento.",
       noData: "sin dato",

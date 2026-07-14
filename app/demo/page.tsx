@@ -2,7 +2,7 @@
 
 import AssetCard, { AssetGrid, MacroCard } from "@/components/AssetCard";
 import AssetDetailPanel from "@/components/AssetDetailPanel";
-import ExplainableText from "@/components/ExplainableText";
+import ThreeLayersAnalysis from "@/components/ThreeLayersAnalysis";
 import Header from "@/components/Header";
 import LanguageToggle from "@/components/LanguageToggle";
 import LearningModeToggle from "@/components/LearningModeToggle";
@@ -30,12 +30,6 @@ export default function DemoPage() {
   const [activeTab, setActiveTab] = useState<DemoTab>("markets");
   const [learningMode, setLearningMode] = useState(true);
   const [assetDetail, setAssetDetail] = useState<AssetDetail | null>(null);
-
-  const markdown = [
-    analysis.analysis.paragraph_1,
-    analysis.analysis.paragraph_2,
-    analysis.analysis.paragraph_3,
-  ].join("\n\n");
 
   const tabs: { id: DemoTab; label: string }[] = [
     { id: "markets", label: t.dashboard.tabs.markets },
@@ -95,7 +89,7 @@ export default function DemoPage() {
           </div>
         </div>
 
-        <h2 className="mb-8 text-xl font-medium leading-tight tracking-tight sm:text-2xl md:text-[2rem]">
+        <h2 className="mb-8 text-[2rem] font-bold leading-tight tracking-tight sm:mb-10">
           {analysis.headline}
         </h2>
 
@@ -160,19 +154,16 @@ export default function DemoPage() {
             ))}
         </AssetGrid>
 
-        <section className="mt-10 max-w-2xl border-t border-[#bbbbbb] pt-8 sm:mt-14 sm:pt-10">
-          <h3 className="text-lg font-medium tracking-tight">
-            {t.dashboard.analysisTitle}
-          </h3>
-          <div className="mt-6">
-            <ExplainableText
-              text={markdown}
-              terms={analysis.terms}
-              experienceLevel="beginner"
-              enabled={learningMode}
-            />
-          </div>
-        </section>
+        <ThreeLayersAnalysis
+          analysis={analysis}
+          loading={false}
+          unavailableLabel={t.dashboard.analysisUnavailable}
+          actionInsightLabel={t.dashboard.actionInsight}
+          narrativeLabel={t.dashboard.narrativeTitle}
+          layerLabels={t.dashboard.layers}
+          learningMode={learningMode}
+          experienceLevel="beginner"
+        />
 
         <div className="mt-12 border border-[#bbbbbb] bg-[#ffffff] p-5 text-center sm:p-6">
           <p className="text-sm leading-relaxed text-[#111111]/55">{t.demo.footer}</p>

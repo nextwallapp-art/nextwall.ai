@@ -7,6 +7,23 @@ import {
   hasActiveSubscription,
   resolveStripeCustomerId,
 } from "@/lib/subscription";
+import type { StructuredAnalysis } from "@/lib/marketAnalysis";
+import {
+  buildClaudeSystemPrompt,
+  parseAnalysisJson,
+  type AnalysisContext,
+} from "@/lib/marketAnalysisPrompt";
+import { fetchAnalystConsensus } from "@/lib/marketData/analystConsensus";
+import { fetchFedCalendarEvents } from "@/lib/marketData/fedCalendar";
+import { fetchGdeltEvents, formatGdeltEvents } from "@/lib/marketData/gdelt";
+import {
+  fetchOnChainMetrics,
+  formatOnChainMetrics,
+} from "@/lib/marketData/onchain";
+import {
+  fetchTechnicalAnalysis,
+  formatTechnicalAnalysis,
+} from "@/lib/marketData/technical";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -42,16 +59,11 @@ type FredObservation = {
   date: string;
 };
 
-type FredHistoricalContext = {
-  fedFunds: {
-    current: FredObservation | null;
-    sixMonthsAgo: FredObservation | null;
-    oneYearAgo: FredObservation | null;
-  };
-  cpi: {
-    current: FredObservation | null;
-    sixMonthsAgo: FredObservation | null;
-  };
+type FredSeriesHistory = {
+  seriesId: string;
+  name: string;
+  unit: string;
+  observations: FredObservation[];
 };
 
 type UserProfile = {
@@ -63,26 +75,8 @@ type UserProfile = {
     metals?: string[];
   } | null;
   free_text: string | null;
-};
-
-type StructuredAnalysis = {
-  headline: string;
-  asset_insights: {
-    symbol: string;
-    name: string;
-    micro_insight: string;
-  }[];
-  analysis: {
-    paragraph_1: string;
-    paragraph_2: string;
-    paragraph_3: string;
-  };
-  terms: {
-    word: string;
-    beginner: string;
-    intermediate: string;
-    advanced: string;
-  }[];
+  last_onboarding_date: string | null;
+  created_at: string | null;
 };
 
 // ── Default asset lists (used when no profile or empty selection) ─────────────
@@ -344,14 +338,18 @@ async function fetchCrypto(
   }
 }
 
-async function fetchFredSeriesHistory(
+async function fetchFredSeriesTwelveMonths(
   apiKey: string,
   seriesId: string,
-  limit = 15,
 ): Promise<FredObservation[]> {
+  const start = new Date();
+  start.setMonth(start.getMonth() - 12);
+  const observation_start = start.toISOString().slice(0, 10);
+
   const url =
     `https://api.stlouisfed.org/fred/series/observations` +
-    `?series_id=${seriesId}&api_key=${apiKey}&limit=${limit}&sort_order=desc&file_type=json`;
+    `?series_id=${seriesId}&api_key=${apiKey}` +
+    `&observation_start=${observation_start}&sort_order=asc&file_type=json`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`FRED ${seriesId} HTTP ${res.status}`);
@@ -370,93 +368,104 @@ async function fetchFredSeriesHistory(
     .filter((obs): obs is FredObservation => obs !== null);
 }
 
-async function fetchFredHistoricalContext(
-  apiKey: string | undefined,
-): Promise<FredHistoricalContext | null> {
-  if (!apiKey) return null;
-
-  try {
-    const [fedHistory, cpiHistory] = await Promise.all([
-      fetchFredSeriesHistory(apiKey, "FEDFUNDS", 15),
-      fetchFredSeriesHistory(apiKey, "CPIAUCSL", 15),
-    ]);
-
-    return {
-      fedFunds: {
-        current: fedHistory[0] ?? null,
-        sixMonthsAgo: fedHistory[6] ?? null,
-        oneYearAgo: fedHistory[12] ?? null,
-      },
-      cpi: {
-        current: cpiHistory[0] ?? null,
-        sixMonthsAgo: cpiHistory[6] ?? null,
-      },
-    };
-  } catch (err) {
-    console.error("[market-analysis] FRED historical fetch error:", err);
-    return null;
+function sampleMonthlyObservations(
+  observations: FredObservation[],
+): FredObservation[] {
+  const byMonth = new Map<string, FredObservation>();
+  for (const obs of observations) {
+    byMonth.set(obs.date.slice(0, 7), obs);
   }
+  return Array.from(byMonth.values());
 }
 
-function formatFredHistoricalContext(context: FredHistoricalContext | null): string {
-  if (!context) {
-    return "Contexto histórico FRED no disponible.";
-  }
+async function fetchFredTwelveMonthHistory(
+  apiKey: string | undefined,
+): Promise<FredSeriesHistory[]> {
+  if (!apiKey) return [];
 
-  const lines: string[] = ["Contexto histórico (FRED):"];
-
-  const { fedFunds, cpi } = context;
-
-  if (fedFunds.current) {
-    lines.push("Tipos Fed (FEDFUNDS):");
-    lines.push(`- Actual (${fedFunds.current.date}): ${fedFunds.current.value}%`);
-    if (fedFunds.sixMonthsAgo) {
-      lines.push(
-        `- Hace ~6 meses (${fedFunds.sixMonthsAgo.date}): ${fedFunds.sixMonthsAgo.value}%`,
-      );
-    }
-    if (fedFunds.oneYearAgo) {
-      lines.push(
-        `- Hace ~1 año (${fedFunds.oneYearAgo.date}): ${fedFunds.oneYearAgo.value}%`,
-      );
-    }
-    if (fedFunds.sixMonthsAgo) {
-      const delta6m = fedFunds.current.value - fedFunds.sixMonthsAgo.value;
-      lines.push(
-        `- Cambio vs hace 6 meses: ${delta6m > 0 ? "+" : ""}${delta6m.toFixed(2)} pp`,
-      );
-    }
-    if (fedFunds.oneYearAgo) {
-      const delta1y = fedFunds.current.value - fedFunds.oneYearAgo.value;
-      lines.push(
-        `- Cambio vs hace 1 año: ${delta1y > 0 ? "+" : ""}${delta1y.toFixed(2)} pp`,
-      );
-    }
-  }
-
-  if (cpi.current) {
-    lines.push("");
-    lines.push("Inflación CPI (CPIAUCSL, índice):");
-    lines.push(`- Actual (${cpi.current.date}): ${cpi.current.value}`);
-    if (cpi.sixMonthsAgo) {
-      lines.push(
-        `- Hace ~6 meses (${cpi.sixMonthsAgo.date}): ${cpi.sixMonthsAgo.value}`,
-      );
-      const pctChange =
-        ((cpi.current.value - cpi.sixMonthsAgo.value) / cpi.sixMonthsAgo.value) *
-        100;
-      lines.push(
-        `- Variación aproximada en 6 meses: ${pctChange > 0 ? "+" : ""}${pctChange.toFixed(2)}%`,
-      );
-    }
-  }
-
-  lines.push("");
-  lines.push(
-    "Usa este contexto histórico para dar perspectiva temporal (ej. 'los tipos llevan meses altos') en lugar de citar solo el dato de hoy.",
+  const results = await Promise.all(
+    MACRO_SERIES.map(async (series) => {
+      try {
+        const raw = await fetchFredSeriesTwelveMonths(apiKey, series.id);
+        const observations =
+          series.id === "DGS10" || raw.length > 15
+            ? sampleMonthlyObservations(raw)
+            : raw;
+        return {
+          seriesId: series.id,
+          name: series.name,
+          unit: series.unit,
+          observations,
+        };
+      } catch (err) {
+        console.error(
+          `[market-analysis] FRED 12mo ${series.id} error:`,
+          err,
+        );
+        return {
+          seriesId: series.id,
+          name: series.name,
+          unit: series.unit,
+          observations: [],
+        };
+      }
+    }),
   );
 
-  return lines.join("\n");
+  return results;
+}
+
+function formatUnit(value: number, unit: string): string {
+  if (unit === "$") return `${value} USD`;
+  if (unit === "%") return `${value}%`;
+  return `${value}`;
+}
+
+function formatFredTwelveMonthComparison(histories: FredSeriesHistory[]): string {
+  if (histories.length === 0) {
+    return "Datos históricos FRED no disponibles.";
+  }
+
+  const lines: string[] = [];
+
+  for (const series of histories) {
+    lines.push(`${series.name} (${series.seriesId}):`);
+
+    if (series.observations.length === 0) {
+      lines.push("- Sin datos en los últimos 12 meses");
+      lines.push("");
+      continue;
+    }
+
+    const first = series.observations[0];
+    const last = series.observations[series.observations.length - 1];
+    lines.push(
+      `- Hace ~12 meses (${first.date}): ${formatUnit(first.value, series.unit)}`,
+    );
+    lines.push(
+      `- Actual (${last.date}): ${formatUnit(last.value, series.unit)}`,
+    );
+
+    const delta = last.value - first.value;
+    if (series.unit === "%") {
+      lines.push(
+        `- Cambio en 12 meses: ${delta > 0 ? "+" : ""}${delta.toFixed(2)} pp`,
+      );
+    } else if (first.value !== 0) {
+      const pct = ((delta / first.value) * 100).toFixed(2);
+      lines.push(
+        `- Cambio en 12 meses: ${delta > 0 ? "+" : ""}${delta.toFixed(2)} (${pct}%)`,
+      );
+    }
+
+    lines.push("- Evolución mensual:");
+    for (const obs of series.observations) {
+      lines.push(`  · ${obs.date}: ${formatUnit(obs.value, series.unit)}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
 }
 
 async function fetchMacro(
@@ -530,7 +539,9 @@ async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
 
     const { data, error } = await admin
       .from("user_profiles")
-      .select("experience_level, selected_assets, free_text")
+      .select(
+        "experience_level, selected_assets, free_text, last_onboarding_date, created_at",
+      )
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -564,7 +575,17 @@ function formatSelectedAssets(profile: UserProfile | null): string {
   return allAssets.length > 0 ? allAssets.join(", ") : "activos generales";
 }
 
-function formatMarketData(
+function formatSelectedAssetNames(profile: UserProfile | null): string[] {
+  if (!profile?.selected_assets) return [];
+  return [
+    ...(profile.selected_assets.crypto ?? []),
+    ...(profile.selected_assets.stocks ?? []),
+    ...(profile.selected_assets.etfs ?? []),
+    ...(profile.selected_assets.metals ?? []),
+  ];
+}
+
+function formatAssetPricesToday(
   stocks: Stock[],
   crypto: Crypto[],
   macro: Macro[],
@@ -574,7 +595,7 @@ function formatMarketData(
       (s) =>
         `- ${s.name} (${s.symbol}): ${s.price !== null ? `$${s.price}` : "sin dato"}${
           s.changePercent !== null
-            ? ` (${s.changePercent > 0 ? "+" : ""}${s.changePercent.toFixed(2)}%)`
+            ? ` (${s.changePercent > 0 ? "+" : ""}${s.changePercent.toFixed(2)}% hoy)`
             : ""
         }`,
     )
@@ -598,154 +619,125 @@ function formatMarketData(
           m.value !== null
             ? `${m.value}${m.unit === "$" ? " USD" : m.unit === "%" ? "%" : ""}`
             : "sin dato"
-        }`,
+        } (${m.date ?? "reciente"})`,
     )
     .join("\n");
 
   return [
-    stocks.length > 0 ? `Mercados (acciones, índices, metales):\n${stockLines}` : null,
+    stocks.length > 0 ? `Acciones/ETFs/metales:\n${stockLines}` : null,
     crypto.length > 0 ? `Crypto:\n${cryptoLines}` : null,
-    `Macroeconomía:\n${macroLines}`,
+    `Macro FRED (actualidad):\n${macroLines}`,
   ]
     .filter((line): line is string => line !== null)
     .join("\n\n");
 }
 
-function buildClaudeSystemPrompt(
+async function compileAnalysisContext(
   profile: UserProfile | null,
   stocks: Stock[],
   crypto: Crypto[],
   macro: Macro[],
-  fredHistory: FredHistoricalContext | null,
+  fredHistory: FredSeriesHistory[],
+  finnhubKey: string | undefined,
+  coingeckoKey: string | undefined,
+  cryptoList: { id: string; symbol: string; name: string }[],
+): Promise<AnalysisContext> {
+  const assetNames = formatSelectedAssetNames(profile);
+  const gdeltNames =
+    assetNames.length > 0
+      ? assetNames
+      : [
+          ...stocks.map((s) => s.name),
+          ...crypto.map((c) => c.name),
+        ];
+
+  const technicalInput = stocks.map((s) => ({
+    symbol: s.symbol,
+    name: s.name,
+    price: s.price,
+    changePercent: s.changePercent,
+  }));
+
+  const [
+    gdeltEvents,
+    technical,
+    onchain,
+    fedCalendar,
+    analystConsensus,
+  ] = await Promise.all([
+    fetchGdeltEvents(gdeltNames),
+    fetchTechnicalAnalysis(finnhubKey, technicalInput),
+    fetchOnChainMetrics(coingeckoKey, cryptoList),
+    fetchFedCalendarEvents(
+      finnhubKey,
+      macro.map((m) => ({
+        name: m.name,
+        value: m.value,
+        date: m.date,
+      })),
+    ),
+    fetchAnalystConsensus(
+      finnhubKey,
+      stocks.map((s) => s.symbol),
+    ),
+  ]);
+
+  return {
+    gdelt_events_formatted: formatGdeltEvents(gdeltEvents),
+    fed_calendar_events: fedCalendar,
+    asset_prices_today: formatAssetPricesToday(stocks, crypto, macro),
+    technical_analysis: formatTechnicalAnalysis(technical),
+    onchain_metrics: formatOnChainMetrics(onchain),
+    historical_context_12m: formatFredTwelveMonthComparison(fredHistory),
+    analyst_consensus: analystConsensus,
+  };
+}
+
+function deriveUserName(
+  email: string | undefined,
+  metadata: Record<string, unknown> | undefined,
 ): string {
+  const fullName = metadata?.full_name ?? metadata?.name;
+  if (typeof fullName === "string" && fullName.trim()) {
+    return fullName.trim().split(/\s+/)[0] ?? fullName.trim();
+  }
+  if (!email) return "Inversor";
+  const local = email.split("@")[0] ?? "Inversor";
+  return local.charAt(0).toUpperCase() + local.slice(1);
+}
+
+function deriveInvestmentTimeline(profile: UserProfile | null): string {
+  if (profile?.last_onboarding_date) {
+    return `Desde ${profile.last_onboarding_date.slice(0, 10)} (último onboarding)`;
+  }
+  if (profile?.created_at) {
+    return `Perfil creado el ${profile.created_at.slice(0, 10)}`;
+  }
+  return "No especificado";
+}
+
+async function fetchStructuredAnalysis(
+  userName: string,
+  profile: UserProfile | null,
+  ctx: AnalysisContext,
+  apiKey: string,
+): Promise<StructuredAnalysis> {
   const experienceLevel =
     LEVEL_LABELS[profile?.experience_level ?? ""] ??
     profile?.experience_level ??
     "Intermedio";
   const selectedAssets = formatSelectedAssets(profile);
   const freeText = profile?.free_text?.trim() || "sin contexto personal";
-  const marketData = formatMarketData(stocks, crypto, macro);
-  const historicalContext = formatFredHistoricalContext(fredHistory);
+  const investmentTimeline = deriveInvestmentTimeline(profile);
 
-  return `Eres el analista de NextWall. Tu trabajo es explicar en lenguaje directo 
-y honesto cómo la economía global afecta a las inversiones de este usuario específico.
-
-PERFIL DEL USUARIO:
-- Nivel: ${experienceLevel}
-- Tiene invertido en: ${selectedAssets}
-- Lo que quiere entender: ${freeText}
-
-DATOS DE HOY:
-${marketData}
-
-${historicalContext}
-
-REGLAS ESTRICTAS:
-- Empieza siempre con UNA frase de resumen de máximo 15 palabras que capture 
-  lo más importante del día. Ejemplo: 'Los mercados caen hoy por miedo a nuevas 
-  subidas de tipos.'
-- Luego escribe exactamente 3 párrafos cortos (máximo 4 frases cada uno):
-  * Párrafo 1: Qué está pasando hoy en los activos de este usuario
-  * Párrafo 2: Por qué está pasando — conecta con los datos macro
-  * Párrafo 3: Qué contexto histórico es relevante y qué debería saber este inversor
-- Adapta el lenguaje al nivel del usuario:
-  * Principiante: usa analogías cotidianas, evita términos técnicos, 
-    explica todo como si fuera la primera vez
-  * Intermedio: puedes usar términos básicos pero explícalos en la misma frase
-  * Avanzado: análisis directo, terminología financiera sin explicaciones básicas
-- NUNCA digas qué comprar o vender
-- NUNCA uses frases vacías como 'es importante recordar' o 'cabe destacar'
-- NUNCA repitas información entre párrafos
-- Si un activo del usuario sube mucho o baja mucho hoy (más de 2%), 
-  menciónalo específicamente y explica por qué
-- Usa el contexto histórico de FRED para dar perspectiva temporal, no solo el dato puntual
-
-FORMATO DE RESPUESTA — devuelve ÚNICAMENTE un objeto JSON válido, sin texto adicional, sin markdown:
-
-{
-  "headline": "La frase de resumen de máximo 15 palabras",
-  "asset_insights": [
-    {
-      "symbol": "símbolo del activo",
-      "name": "nombre del activo",
-      "micro_insight": "Una frase de máximo 12 palabras explicando por qué se mueve hoy este activo específico"
-    }
-  ],
-  "analysis": {
-    "paragraph_1": "Qué está pasando hoy en los activos de este usuario — máximo 4 frases",
-    "paragraph_2": "Por qué está pasando — conecta con datos macro — máximo 4 frases",
-    "paragraph_3": "Contexto histórico relevante y qué debería saber este inversor — máximo 4 frases"
-  },
-  "terms": [
-    {
-      "word": "término exacto tal como aparece en el análisis",
-      "beginner": "definición simple con analogía cotidiana, máximo 2 frases",
-      "intermediate": "definición con contexto financiero básico, máximo 2 frases",
-      "advanced": "definición técnica directa, máximo 1 frase"
-    }
-  ]
-}
-
-Reglas del JSON:
-- El headline debe ser específico para los activos de este usuario
-- Incluye asset_insights para los activos del usuario con movimiento relevante hoy
-- Los terms deben ser palabras que realmente aparecen en los 3 párrafos
-- Devuelve SOLO el JSON, nada más`;
-}
-
-function parseAnalysisJson(raw: string): StructuredAnalysis {
-  const trimmed = raw.trim();
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    const codeBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (codeBlock) {
-      parsed = JSON.parse(codeBlock[1].trim());
-    } else {
-      const start = trimmed.indexOf("{");
-      const end = trimmed.lastIndexOf("}");
-      if (start === -1 || end === -1) {
-        throw new Error("No JSON object found in Claude response");
-      }
-      parsed = JSON.parse(trimmed.slice(start, end + 1));
-    }
-  }
-
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Parsed analysis is not an object");
-  }
-
-  const obj = parsed as Record<string, unknown>;
-  if (
-    typeof obj.headline !== "string" ||
-    !Array.isArray(obj.asset_insights) ||
-    !obj.analysis ||
-    typeof obj.analysis !== "object" ||
-    !Array.isArray(obj.terms)
-  ) {
-    throw new Error("Analysis JSON missing required fields");
-  }
-
-  return obj as StructuredAnalysis;
-}
-
-async function fetchStructuredAnalysis(
-  profile: UserProfile | null,
-  stocks: Stock[],
-  crypto: Crypto[],
-  macro: Macro[],
-  fredHistory: FredHistoricalContext | null,
-  apiKey: string,
-): Promise<StructuredAnalysis> {
   const client = new Anthropic({ apiKey });
   const system = buildClaudeSystemPrompt(
-    profile,
-    stocks,
-    crypto,
-    macro,
-    fredHistory,
+    userName,
+    experienceLevel,
+    selectedAssets,
+    freeText,
+    investmentTimeline,
+    ctx,
   );
   let lastError: unknown;
 
@@ -757,7 +749,7 @@ async function fetchStructuredAnalysis(
 
       const message = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
+        max_tokens: 8192,
         system,
         messages: [{ role: "user", content: "Devuelve el JSON." }],
       });
@@ -904,11 +896,11 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch user profile, macro snapshot, and FRED historical context in parallel
+    // Fetch user profile, macro snapshot, and 12-month FRED history in parallel
     const [profile, macroResult, fredHistory] = await Promise.all([
       fetchUserProfile(user.id),
       fetchMacro(fredKey),
-      fetchFredHistoricalContext(fredKey),
+      fetchFredTwelveMonthHistory(fredKey),
     ]);
 
     const macro = macroResult.data;
@@ -958,12 +950,27 @@ export async function GET(request: Request) {
     }
 
     try {
-      const analysis = await fetchStructuredAnalysis(
+      const userName = deriveUserName(
+        user.email ?? undefined,
+        user.user_metadata as Record<string, unknown> | undefined,
+      );
+
+      console.log("[market-analysis] Compiling 7-layer analysis context…");
+      const analysisContext = await compileAnalysisContext(
         profile,
         stocks,
         crypto,
         macro,
         fredHistory,
+        finnhubKey,
+        coingeckoKey,
+        cryptoToFetch,
+      );
+
+      const analysis = await fetchStructuredAnalysis(
+        userName,
+        profile,
+        analysisContext,
         anthropicKey,
       );
 
