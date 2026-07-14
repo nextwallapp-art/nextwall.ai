@@ -98,6 +98,7 @@ export default function AssetDetailPanel({
           {loading && (
             <div className="space-y-4">
               <div className="h-10 w-32 animate-pulse rounded-sm bg-[#111111]/8" />
+              <div className="h-28 animate-pulse rounded-sm bg-[#111111]/6" />
               <div className="grid grid-cols-2 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
@@ -140,7 +141,25 @@ export default function AssetDetailPanel({
                 )}
               </div>
 
-              {detail.microInsight && (
+              {detail.whatsHappening && (
+                <div className="border border-[#111111] bg-[#fafafa] px-4 py-4">
+                  <p className="text-[0.65rem] font-medium uppercase tracking-[0.16em] text-[#111111]/40">
+                    {t.assetDetail.whatsHappening}
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {detail.whatsHappening.split(/\n\n+/).map((paragraph, index) => (
+                      <p
+                        key={`wh-${index}`}
+                        className="text-sm leading-relaxed text-[#111111]/75"
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {detail.microInsight && !detail.whatsHappening && (
                 <div className="border border-[#111111]/12 bg-[#fafafa] px-4 py-3">
                   <p className="text-[0.65rem] font-medium uppercase tracking-[0.16em] text-[#111111]/40">
                     {t.assetDetail.todayInsight}

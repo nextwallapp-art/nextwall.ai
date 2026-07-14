@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import {
+  fetchCompanyNews,
+  generateAssetWhatsHappening,
+} from "@/lib/generateAssetWhatsHappening";
 import { getAssetKnowledge } from "@/lib/assetKnowledge";
 import {
   formatLargeUsd,
@@ -15,6 +19,7 @@ import {
   resolveStripeCustomerId,
 } from "@/lib/subscription";
 import type { Locale } from "@/lib/i18n/translations";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -224,6 +229,8 @@ function buildStockDetail(
     low52w: number | null;
   },
   labels: Record<string, string>,
+  whatsHappening: string | null,
+  microInsight: string | null,
 ): AssetDetail {
   const numberLocale = locale === "es" ? "es-ES" : "en-US";
   const knowledge = getAssetKnowledge(symbol, locale);
@@ -288,7 +295,8 @@ function buildStockDetail(
     revenueDrivers: knowledge?.revenueDrivers ?? [],
     description: knowledge?.description ?? null,
     metrics: metricsList,
-    microInsight: null,
+    microInsight,
+    whatsHappening,
   };
 }
 
@@ -298,6 +306,8 @@ function buildCryptoDetail(
   locale: Locale,
   data: Awaited<ReturnType<typeof fetchCryptoDetail>>,
   labels: Record<string, string>,
+  whatsHappening: string | null,
+  microInsight: string | null,
 ): AssetDetail {
   const numberLocale = locale === "es" ? "es-ES" : "en-US";
   const knowledge = getAssetKnowledge(symbol, locale);
@@ -336,8 +346,27 @@ function buildCryptoDetail(
     revenueDrivers: knowledge?.revenueDrivers ?? [],
     description: data.description ?? knowledge?.description ?? null,
     metrics: metricsList,
-    microInsight: null,
+    microInsight,
+    whatsHappening,
   };
+}
+
+async function fetchUserExperienceLevel(userId: string): Promise<string | null> {
+  try {
+    const admin = getSupabaseAdmin();
+    if (!admin) return null;
+
+    const { data, error } = await admin
+      .from("user_profiles")
+      .select("experience_level")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data.experience_level ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: Request) {
@@ -361,6 +390,8 @@ export async function GET(request: Request) {
     searchParams.get("coingeckoId")?.trim() ??
     (symbol ? COINGECKO_ID_BY_SYMBOL[symbol] : undefined);
   const locale = parseLocale(searchParams.get("locale"));
+  const microInsight = searchParams.get("microInsight")?.trim() || null;
+  const experienceLevelParam = searchParams.get("experienceLevel")?.trim() || null;
 
   if (!type || !symbol || (type !== "stock" && type !== "crypto")) {
     return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
@@ -445,6 +476,11 @@ export async function GET(request: Request) {
       );
     }
 
+    const experienceLevel =
+      experienceLevelParam ??
+      (await fetchUserExperienceLevel(user.id));
+    const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+
     if (type === "stock") {
       if (!finnhubKey) {
         return NextResponse.json(
@@ -453,11 +489,28 @@ export async function GET(request: Request) {
         );
       }
 
-      const [quote, profile, metrics] = await Promise.all([
+      const [quote, profile, metrics, news] = await Promise.all([
         fetchStockQuote(finnhubKey, symbol),
         fetchStockProfile(finnhubKey, symbol),
         fetchStockMetrics(finnhubKey, symbol),
+        fetchCompanyNews(finnhubKey, symbol),
       ]);
+
+      const whatsHappening = await generateAssetWhatsHappening(
+        {
+          symbol,
+          name: profile.name ?? name,
+          type: "stock",
+          locale,
+          experienceLevel,
+          price: quote.price,
+          changePercent: quote.changePercent,
+          industry: profile.industry,
+          microInsight,
+          news,
+        },
+        anthropicKey,
+      );
 
       const detail = buildStockDetail(
         symbol,
@@ -467,6 +520,8 @@ export async function GET(request: Request) {
         profile,
         metrics,
         labels,
+        whatsHappening,
+        microInsight,
       );
 
       return NextResponse.json(detail);
@@ -477,7 +532,32 @@ export async function GET(request: Request) {
     }
 
     const cryptoData = await fetchCryptoDetail(coingeckoKey, coingeckoId, locale);
-    const detail = buildCryptoDetail(symbol, name, locale, cryptoData, labels);
+
+    const whatsHappening = await generateAssetWhatsHappening(
+      {
+        symbol,
+        name: cryptoData.name ?? name,
+        type: "crypto",
+        locale,
+        experienceLevel,
+        price: cryptoData.price,
+        changePercent: cryptoData.changePercent,
+        industry: null,
+        microInsight,
+        news: [],
+      },
+      anthropicKey,
+    );
+
+    const detail = buildCryptoDetail(
+      symbol,
+      name,
+      locale,
+      cryptoData,
+      labels,
+      whatsHappening,
+      microInsight,
+    );
 
     return NextResponse.json(detail);
   } catch (error) {

@@ -463,6 +463,14 @@ function DashboardContent() {
           locale,
         });
 
+        if (microInsight) {
+          params.set("microInsight", microInsight);
+        }
+
+        if (profile?.experience_level) {
+          params.set("experienceLevel", profile.experience_level);
+        }
+
         const res = await fetch(`/api/asset-detail?${params.toString()}`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
@@ -482,10 +490,7 @@ function DashboardContent() {
         }
 
         const json = (await res.json()) as AssetDetail;
-        setAssetDetail({
-          ...json,
-          microInsight: json.microInsight ?? microInsight,
-        });
+        setAssetDetail(json);
       } catch (err) {
         setDetailError(
           err instanceof Error ? err.message : t.assetDetail.unavailable,
@@ -494,7 +499,7 @@ function DashboardContent() {
         setDetailLoading(false);
       }
     },
-    [analysis, locale, router, t.assetDetail.unavailable],
+    [analysis, locale, profile?.experience_level, router, t.assetDetail.unavailable],
   );
 
   function closeAssetDetail() {

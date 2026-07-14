@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/translations";
 import { getAssetKnowledge } from "@/lib/assetKnowledge";
+import { getDemoWhatsHappening } from "@/lib/demoWhatsHappening";
 import { formatLargeUsd, formatPercent, formatPrice } from "@/lib/formatMarket";
 import type { AssetDetail, AssetDetailMetric } from "@/lib/marketTypes";
 import { getDemoMarketData, getMicroInsight } from "@/lib/demoData";
@@ -245,5 +246,6 @@ export function getDemoAssetDetail(
     description: knowledge?.description ?? null,
     metrics,
     microInsight,
+    whatsHappening: getDemoWhatsHappening(symbol, locale),
   };
 }

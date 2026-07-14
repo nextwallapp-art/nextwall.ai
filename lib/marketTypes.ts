@@ -22,6 +22,7 @@ export type AssetDetail = {
   description: string | null;
   metrics: AssetDetailMetric[];
   microInsight: string | null;
+  whatsHappening: string | null;
 };
 
 export type SelectedAssetRef = {
