@@ -1,6 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
+import LegalFooter from "@/components/LegalFooter";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -150,6 +151,8 @@ function LoginContent() {
               {t.login.backHome}
             </Link>
           </p>
+
+          <LegalFooter />
         </div>
       </main>
     </div>

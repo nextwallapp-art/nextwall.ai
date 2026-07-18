@@ -2,12 +2,13 @@
 
 import ExplainableText from "@/components/ExplainableText";
 import { SkeletonBlock } from "@/components/AssetCard";
+import type { Locale } from "@/lib/i18n/translations";
 import {
-  analysisToFullText,
   narrativeParagraphs,
   type StructuredAnalysis,
 } from "@/lib/marketAnalysis";
-import { useState, type ReactNode } from "react";
+import { mergeAnalysisTerms } from "@/lib/mergeAnalysisTerms";
+import { useMemo, useState, type ReactNode } from "react";
 
 function LayerSkeleton({ title }: { title: string }) {
   return (
@@ -45,6 +46,37 @@ function LayerCard({
   );
 }
 
+function ExplainableLine({
+  text,
+  terms,
+  experienceLevel,
+  learningMode,
+  className = "",
+}: {
+  text: string;
+  terms: StructuredAnalysis["terms"];
+  experienceLevel: string | null;
+  learningMode: boolean;
+  className?: string;
+}) {
+  if (!text) return null;
+
+  if (learningMode) {
+    return (
+      <div className={className}>
+        <ExplainableText
+          text={text}
+          terms={terms}
+          experienceLevel={experienceLevel}
+          enabled
+        />
+      </div>
+    );
+  }
+
+  return <p className={className}>{text}</p>;
+}
+
 export default function ThreeLayersAnalysis({
   analysis,
   loading,
@@ -54,6 +86,7 @@ export default function ThreeLayersAnalysis({
   layerLabels,
   learningMode,
   experienceLevel,
+  locale = "es",
 }: {
   analysis: StructuredAnalysis | null;
   loading: boolean;
@@ -63,6 +96,7 @@ export default function ThreeLayersAnalysis({
   layerLabels: { world: string; price: string; experts: string };
   learningMode: boolean;
   experienceLevel: string | null;
+  locale?: Locale;
 }) {
   const [mobileLayer, setMobileLayer] = useState<"world" | "price" | "experts">(
     "world",
@@ -98,19 +132,40 @@ export default function ThreeLayersAnalysis({
   }
 
   const { three_layers: layers } = analysis;
-  const fullText = analysisToFullText(analysis);
+  const terms = useMemo(
+    () => mergeAnalysisTerms(analysis.terms, locale),
+    [analysis.terms, locale],
+  );
   const paragraphs = narrativeParagraphs(analysis.narrative);
 
   const worldLayer = (
     <LayerCard title={layers.layer_1_what_happened.title}>
       {layers.layer_1_what_happened.events.map((event, i) => (
         <div key={i} className="border-l-2 border-[#111111]/10 pl-4">
-          <p className="font-medium text-[#111111]">{event.event}</p>
+          <ExplainableLine
+            text={event.event}
+            terms={terms}
+            experienceLevel={experienceLevel}
+            learningMode={learningMode}
+            className="font-medium text-[#111111]"
+          />
           <p className="mt-1 text-xs uppercase tracking-wide text-[#111111]/40">
             {event.where}
           </p>
-          <p className="mt-2">{event.impact_on_user}</p>
-          <p className="mt-1 text-xs text-[#111111]/50">{event.evidence}</p>
+          <ExplainableLine
+            text={event.impact_on_user}
+            terms={terms}
+            experienceLevel={experienceLevel}
+            learningMode={learningMode}
+            className="mt-2"
+          />
+          <ExplainableLine
+            text={event.evidence}
+            terms={terms}
+            experienceLevel={experienceLevel}
+            learningMode={learningMode}
+            className="mt-1 text-xs text-[#111111]/50"
+          />
         </div>
       ))}
     </LayerCard>
@@ -122,33 +177,67 @@ export default function ThreeLayersAnalysis({
         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#111111]/40">
           Técnico
         </p>
-        <p>{layers.layer_2_what_price_says.technical}</p>
+        <ExplainableLine
+          text={layers.layer_2_what_price_says.technical}
+          terms={terms}
+          experienceLevel={experienceLevel}
+          learningMode={learningMode}
+        />
       </div>
       {layers.layer_2_what_price_says.onchain ? (
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#111111]/40">
             On-chain
           </p>
-          <p>{layers.layer_2_what_price_says.onchain}</p>
+          <ExplainableLine
+            text={layers.layer_2_what_price_says.onchain}
+            terms={terms}
+            experienceLevel={experienceLevel}
+            learningMode={learningMode}
+          />
         </div>
       ) : null}
       <div>
         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#111111]/40">
           Patrón
         </p>
-        <p>{layers.layer_2_what_price_says.pattern}</p>
+        <ExplainableLine
+          text={layers.layer_2_what_price_says.pattern}
+          terms={terms}
+          experienceLevel={experienceLevel}
+          learningMode={learningMode}
+        />
       </div>
     </LayerCard>
   );
 
   const expertsLayer = (
     <LayerCard title={layers.layer_3_what_experts_think.title}>
-      <p>{layers.layer_3_what_experts_think.fundamental}</p>
-      <p>{layers.layer_3_what_experts_think.quants}</p>
-      <p>{layers.layer_3_what_experts_think.range}</p>
-      <p className="text-[#111111]/55 italic">
-        {layers.layer_3_what_experts_think.humility}
-      </p>
+      <ExplainableLine
+        text={layers.layer_3_what_experts_think.fundamental}
+        terms={terms}
+        experienceLevel={experienceLevel}
+        learningMode={learningMode}
+      />
+      <ExplainableLine
+        text={layers.layer_3_what_experts_think.quants}
+        terms={terms}
+        experienceLevel={experienceLevel}
+        learningMode={learningMode}
+      />
+      <ExplainableLine
+        text={layers.layer_3_what_experts_think.range}
+        terms={terms}
+        experienceLevel={experienceLevel}
+        learningMode={learningMode}
+      />
+      <ExplainableLine
+        text={layers.layer_3_what_experts_think.humility}
+        terms={terms}
+        experienceLevel={experienceLevel}
+        learningMode={learningMode}
+        className="text-[#111111]/55 italic"
+      />
     </LayerCard>
   );
 
@@ -191,20 +280,28 @@ export default function ThreeLayersAnalysis({
       <div className="max-w-2xl space-y-5">
         <h3 className="text-lg font-medium tracking-tight">{narrativeLabel}</h3>
         <div className="space-y-4">
-          {paragraphs.map((paragraph, i) => (
-            <p key={i} className="text-sm leading-relaxed text-[#111111]/75 sm:text-base">
-              {learningMode ? (
+          {paragraphs.map((paragraph, i) =>
+            learningMode ? (
+              <div
+                key={i}
+                className="text-sm leading-relaxed text-[#111111]/75 sm:text-base"
+              >
                 <ExplainableText
                   text={paragraph}
-                  terms={analysis.terms}
+                  terms={terms}
                   experienceLevel={experienceLevel}
                   enabled
                 />
-              ) : (
-                paragraph
-              )}
-            </p>
-          ))}
+              </div>
+            ) : (
+              <p
+                key={i}
+                className="text-sm leading-relaxed text-[#111111]/75 sm:text-base"
+              >
+                {paragraph}
+              </p>
+            ),
+          )}
         </div>
       </div>
 
@@ -215,23 +312,12 @@ export default function ThreeLayersAnalysis({
         <div className="mt-3 text-sm leading-relaxed text-[#111111] sm:text-base">
           <ExplainableText
             text={analysis.action_insight}
-            terms={analysis.terms}
+            terms={terms}
             experienceLevel={experienceLevel}
             enabled={learningMode}
           />
         </div>
       </div>
-
-      {learningMode ? (
-        <div className="sr-only">
-          <ExplainableText
-            text={fullText}
-            terms={analysis.terms}
-            experienceLevel={experienceLevel}
-            enabled
-          />
-        </div>
-      ) : null}
 
       {analysis.meta?.sources ? (
         <p className="text-xs text-[#111111]/35">

@@ -152,35 +152,10 @@ export async function generateAssetWhatsHappening(
   input: GenerateInput,
   apiKey: string | undefined,
 ): Promise<string> {
-  if (!apiKey) {
-    return buildFallbackWhatsHappening(input);
-  }
-
-  try {
-    const client = new Anthropic({ apiKey });
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 768,
-      messages: [
-        {
-          role: "user",
-          content: buildPrompt(input),
-        },
-      ],
-    });
-
-    const text = message.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("")
-      .trim();
-
-    const parsed = parseWhatsHappeningJson(text);
-    return parsed || buildFallbackWhatsHappening(input);
-  } catch (error) {
-    console.warn("[asset-detail] whatsHappening generation failed:", error);
-    return buildFallbackWhatsHappening(input);
-  }
+  // Sin Claude por defecto — cada clic en un activo era otra llamada de pago.
+  // Usa titulares, microInsight del dashboard y conocimiento estático.
+  void apiKey;
+  return buildFallbackWhatsHappening(input);
 }
 
 export async function fetchCompanyNews(

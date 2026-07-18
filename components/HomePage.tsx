@@ -76,35 +76,6 @@ export default function HomePage() {
                     {t.hero.ctaSecondary}
                   </Link>
                 </ScrollReveal>
-
-                <ScrollReveal delayMs={240}>
-                  <dl className="mt-10 grid w-full max-w-xl grid-cols-1 gap-5 border-t border-[var(--border)] pt-8 sm:grid-cols-3 sm:gap-4 sm:pt-7">
-                    <div>
-                      <dt className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[0.65rem] sm:tracking-[0.16em]">
-                        {t.hero.stat1}
-                      </dt>
-                      <dd className="mt-1.5 text-base font-medium text-[var(--foreground)] sm:mt-1 sm:text-sm">
-                        {t.hero.stat1Value}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[0.65rem] sm:tracking-[0.16em]">
-                        {t.hero.stat2}
-                      </dt>
-                      <dd className="mt-1.5 text-base font-medium text-[var(--foreground)] sm:mt-1 sm:text-sm">
-                        {t.hero.stat2Value}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] sm:text-[0.65rem] sm:tracking-[0.16em]">
-                        {t.hero.stat3}
-                      </dt>
-                      <dd className="mt-1.5 text-base font-medium text-[var(--foreground)] sm:mt-1 sm:text-sm">
-                        {t.hero.stat3Value}
-                      </dd>
-                    </div>
-                  </dl>
-                </ScrollReveal>
               </div>
 
               <ScrollReveal delayMs={140} className="relative hidden sm:block">

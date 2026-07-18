@@ -1,6 +1,7 @@
 "use client";
 
 import NextWallLogo from "@/components/NextWallLogo";
+import LegalFooter from "@/components/LegalFooter";
 import { clearOnboardingBannerDismiss } from "@/lib/onboardingBanner";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -549,6 +550,8 @@ export default function OnboardingPage() {
             )}
           </div>
         </div>
+
+        <LegalFooter />
       </main>
     </div>
   );

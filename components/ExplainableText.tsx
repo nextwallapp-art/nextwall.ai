@@ -21,12 +21,25 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const WORD_CHAR_CLASS = "A-Za-z0-9_\\u00C0-\\u024F";
+
 function buildTermMap(terms: ExplainableTerm[]): Map<string, ExplainableTerm> {
   const map = new Map<string, ExplainableTerm>();
   for (const term of terms) {
     map.set(term.word.toLowerCase(), term);
   }
   return map;
+}
+
+function buildTermRegex(terms: ExplainableTerm[]): RegExp | null {
+  if (terms.length === 0) return null;
+
+  const sorted = [...terms].sort((a, b) => b.word.length - a.word.length);
+  const pattern = sorted.map((term) => escapeRegex(term.word)).join("|");
+  return new RegExp(
+    `(?<![${WORD_CHAR_CLASS}])(${pattern})(?![${WORD_CHAR_CLASS}])`,
+    "giu",
+  );
 }
 
 function splitTextByTerms(
@@ -37,9 +50,11 @@ function splitTextByTerms(
     return [{ type: "text", value: text }];
   }
 
-  const sorted = [...terms].sort((a, b) => b.word.length - a.word.length);
-  const pattern = sorted.map((term) => escapeRegex(term.word)).join("|");
-  const regex = new RegExp(`(${pattern})`, "gi");
+  const regex = buildTermRegex(terms);
+  if (!regex) {
+    return [{ type: "text", value: text }];
+  }
+
   const parts = text.split(regex).filter((part) => part.length > 0);
   const termMap = buildTermMap(terms);
 

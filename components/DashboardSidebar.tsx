@@ -8,15 +8,26 @@ type DashboardSidebarProps = {
   onSignOut: () => void;
   email?: string | null;
   compact?: boolean;
+  active?: "home" | "global";
+  variant?: "app" | "demo";
 };
 
 export default function DashboardSidebar({
   onSignOut,
   email,
   compact = false,
+  active = "home",
+  variant = "app",
 }: DashboardSidebarProps) {
   const { t } = useLanguage();
   const initial = email?.trim().charAt(0).toUpperCase() || "N";
+  const homeHref = variant === "demo" ? "/demo" : "/dashboard";
+  const globalHref = variant === "demo" ? "/login" : "/dashboard/global";
+
+  const navLinkClass = (section: "home" | "global") =>
+    section === active
+      ? "text-[15px] font-medium text-[#ffffff]"
+      : "text-[15px] text-[#ffffff]/55 transition-opacity hover:text-[#ffffff]";
 
   if (compact) {
     return (
@@ -28,11 +39,11 @@ export default function DashboardSidebar({
           <NextWallLogo className="h-5 w-auto" invert priority />
         </Link>
         <div className="flex min-w-0 items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="truncate text-sm font-medium text-[#ffffff]/90"
-          >
+          <Link href={homeHref} className={navLinkClass("home")}>
             {t.dashboard.home}
+          </Link>
+          <Link href={globalHref} className={navLinkClass("global")}>
+            {t.dashboard.global}
           </Link>
           <button
             type="button"
@@ -57,11 +68,18 @@ export default function DashboardSidebar({
 
       <nav className="mt-12 flex flex-col gap-5">
         <Link
-          href="/dashboard"
-          className="text-[15px] font-medium text-[#ffffff]"
-          aria-current="page"
+          href={homeHref}
+          className={navLinkClass("home")}
+          aria-current={active === "home" ? "page" : undefined}
         >
           {t.dashboard.home}
+        </Link>
+        <Link
+          href={globalHref}
+          className={navLinkClass("global")}
+          aria-current={active === "global" ? "page" : undefined}
+        >
+          {t.dashboard.global}
         </Link>
       </nav>
 

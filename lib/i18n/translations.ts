@@ -13,7 +13,7 @@ export const translations = {
       headline:
         "If you don't know why your investments rise or fall, you're not investing — you're gambling.",
       subtitle:
-        "NextWall connects every price move to the macro story, sector trends, and company drivers behind it — in plain language, with live data.",
+        "NextWall connects every price move to the macro story, sector trends, and company drivers behind it — in plain language.",
       cta: "Get started",
       ctaSecondary: "Try the demo",
       stat1: "Live data",
@@ -71,6 +71,20 @@ export const translations = {
         tagline: "Markets move. Now you know why.",
         rights: "All rights reserved.",
       },
+    },
+    legalFooter: {
+      disclaimerLabel: "Legal notice:",
+      disclaimer:
+        "NextWall provides educational analysis about financial markets. It does not constitute financial, investment, or buy/sell advice. Consult a licensed financial advisor before making investment decisions.",
+      rights: "All rights reserved.",
+      privacy: "Privacy policy",
+      terms: "Terms and conditions",
+    },
+    legal: {
+      privacyBody:
+        "NextWall processes account and usage data to provide personalized market education. We do not sell your data. Contact us at nextwallapp@gmail.com for privacy requests.",
+      termsBody:
+        "By using NextWall you agree to receive educational market content only. NextWall is not a regulated investment advisor. Service availability and features may change.",
     },
     cards: {
       sectionEyebrow: "How it works",
@@ -191,13 +205,34 @@ export const translations = {
         price: "Price",
         experts: "Experts",
       },
+      expandableSections: {
+        whatHappened: "What happened today?",
+        whatPriceSays: "What does price say?",
+        whatExpertsThink: "What do experts think?",
+      },
       didYouKnow: "Did you know?",
       analyzingMarkets: "Analyzing the markets…",
+      loadingEta: "Usually takes 30–60 seconds. Don't refresh the page.",
+      rateLimited: "Too many requests. Try again in {seconds}s or wait for the current load to finish.",
+      refreshQuota: "{remaining} of {limit} updates left today",
+      refreshQuotaNone: "Daily update limit reached",
+      analysisReused:
+        "Prices updated. AI analysis refreshes once per day.",
+      claudeQuota: "AI analysis: {remaining} left today",
+      dailyRefreshLimited:
+        "You've used all {limit} updates for today. Your quota resets in about {hours}h.",
       analysisUnavailable: "Analysis is not available right now.",
       noData: "no data",
       signOut: "Sign out",
       backHome: "Back to home",
       home: "Home",
+      global: "Global",
+      globalTitle: "Global risk map",
+      globalSubtitle:
+        "Red zones mark where geopolitical tension is hitting markets hardest. Tap a hotspot to see how it connects to your holdings.",
+      globalHint: "Drag to rotate · Tap a red zone",
+      globalSelected: "Active zone",
+      globalEmpty: "No geopolitical hotspots detected right now.",
       loading: "Loading…",
       errors: {
         loadFailed: "Could not load analysis",
@@ -242,7 +277,7 @@ export const translations = {
       headline:
         "Si no sabes por qué tus inversiones suben o bajan, no estás invirtiendo: estás apostando.",
       subtitle:
-        "NextWall conecta cada movimiento de precio con la historia macro, el sector y los factores de la empresa — en lenguaje claro y con datos en vivo.",
+        "NextWall conecta cada movimiento de precio con la historia macro, el sector y los factores de la empresa — en lenguaje claro.",
       cta: "Empieza ahora",
       ctaSecondary: "Probar la demo",
       stat1: "Datos en vivo",
@@ -301,6 +336,20 @@ export const translations = {
         tagline: "Los mercados se mueven. Ahora sabes por qué.",
         rights: "Todos los derechos reservados.",
       },
+    },
+    legalFooter: {
+      disclaimerLabel: "Advertencia legal:",
+      disclaimer:
+        "NextWall proporciona análisis educativos sobre mercados financieros. No constituye asesoramiento financiero, inversión o recomendación de compra/venta. Consulta a un asesor financiero autorizado antes de tomar decisiones de inversión.",
+      rights: "Todos los derechos reservados.",
+      privacy: "Política de privacidad",
+      terms: "Términos y condiciones",
+    },
+    legal: {
+      privacyBody:
+        "NextWall procesa datos de cuenta y uso para ofrecer educación de mercados personalizada. No vendemos tus datos. Escríbenos a nextwallapp@gmail.com para solicitudes de privacidad.",
+      termsBody:
+        "Al usar NextWall aceptas recibir contenido educativo sobre mercados. NextWall no es un asesor de inversiones regulado. La disponibilidad del servicio y sus funciones pueden cambiar.",
     },
     cards: {
       sectionEyebrow: "Cómo funciona",
@@ -422,13 +471,34 @@ export const translations = {
         price: "Precio",
         experts: "Expertos",
       },
+      expandableSections: {
+        whatHappened: "¿Qué pasó hoy?",
+        whatPriceSays: "¿Qué dice el precio?",
+        whatExpertsThink: "¿Qué dicen los expertos?",
+      },
       didYouKnow: "¿Sabías que…?",
       analyzingMarkets: "Analizando los mercados…",
+      loadingEta: "Suele tardar 30–60 segundos. No recargues la página.",
+      rateLimited: "Demasiadas peticiones. Espera {seconds}s o a que termine la carga actual.",
+      refreshQuota: "Quedan {remaining} de {limit} actualizaciones hoy",
+      refreshQuotaNone: "Límite diario de actualizaciones alcanzado",
+      analysisReused:
+        "Precios actualizados. El análisis con IA se renueva 1 vez al día.",
+      claudeQuota: "Análisis IA: {remaining} restante hoy",
+      dailyRefreshLimited:
+        "Has usado las {limit} actualizaciones de hoy. Se reinicia en unas {hours}h.",
       analysisUnavailable: "El análisis no está disponible en este momento.",
       noData: "sin dato",
       signOut: "Cerrar sesión",
       backHome: "Volver al inicio",
       home: "Inicio",
+      global: "Global",
+      globalTitle: "Mapa de riesgo global",
+      globalSubtitle:
+        "Las zonas rojas marcan dónde la tensión geopolítica golpea más fuerte a los mercados. Toca un punto para ver cómo afecta a tus inversiones.",
+      globalHint: "Arrastra para girar · Toca una zona roja",
+      globalSelected: "Zona activa",
+      globalEmpty: "No hay puntos geopolíticos activos en este momento.",
       loading: "Cargando…",
       errors: {
         loadFailed: "No se pudo cargar el análisis",

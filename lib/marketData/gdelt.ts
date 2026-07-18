@@ -91,7 +91,18 @@ export async function fetchGdeltEvents(
     `&timespan=48h&mode=artlist&maxrecords=20&format=json&sort=datedesc`;
 
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    let res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (res.status === 429) {
+      console.warn("[gdelt] HTTP 429 — retrying after backoff");
+      await new Promise((r) => setTimeout(r, 2_000));
+      res = await fetch(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(12_000),
+      });
+    }
     if (!res.ok) {
       console.error("[gdelt] HTTP", res.status);
       return [];

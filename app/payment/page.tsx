@@ -2,6 +2,7 @@
 
 import Header from "@/components/Header";
 import PaymentMethodIcons from "@/components/PaymentMethodIcons";
+import LegalFooter from "@/components/LegalFooter";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -161,6 +162,8 @@ function PaymentContent() {
               {t.payment.backHome}
             </Link>
           </div>
+
+          <LegalFooter />
         </div>
       </main>
     </div>

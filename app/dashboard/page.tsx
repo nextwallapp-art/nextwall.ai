@@ -5,11 +5,13 @@ import AssetDetailPanel from "@/components/AssetDetailPanel";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import LanguageToggle from "@/components/LanguageToggle";
 import LearningModeToggle from "@/components/LearningModeToggle";
-import ThreeLayersAnalysis from "@/components/ThreeLayersAnalysis";
+import ExpandableAnalysis from "@/components/ExpandableAnalysis";
+import LegalFooter from "@/components/LegalFooter";
 import {
   dismissOnboardingBanner,
   shouldShowOnboardingBanner,
 } from "@/lib/onboardingBanner";
+import { getClientMarketCache, isClientCacheFresh, setClientMarketCache } from "@/lib/clientMarketCache";
 import { formatRelativeUpdated } from "@/lib/formatRelativeTime";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { getAssetMicroInsight, type StructuredAnalysis } from "@/lib/marketAnalysis";
@@ -17,7 +19,7 @@ import type { AssetDetail } from "@/lib/marketTypes";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const LEARNING_MODE_KEY = "nextwall-learning-mode";
 
@@ -61,32 +63,19 @@ type MarketData = {
   lastUpdated: string;
   analysis: StructuredAnalysis | null;
   sourceErrors?: DataSource[];
+  refreshQuota?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    retryAfter: number;
+  };
+  analysisReused?: boolean;
+  claudeQuota?: {
+    used: number;
+    limit: number;
+    remaining: number;
+  };
 };
-
-function HeadlineSection({
-  headline,
-  loading,
-}: {
-  headline: string | null;
-  loading: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className="mb-10 space-y-3">
-        <SkeletonBlock className="h-9 w-full max-w-xl" />
-        <SkeletonBlock className="h-9 w-full max-w-lg" />
-      </div>
-    );
-  }
-
-  if (!headline) return null;
-
-  return (
-    <h2 className="mb-8 text-[2rem] font-bold leading-tight tracking-tight text-[#111111] sm:mb-10">
-      {headline}
-    </h2>
-  );
-}
 
 function DashboardTabs({
   activeTab,
@@ -119,6 +108,21 @@ function DashboardTabs({
           {tab.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+function LoadingBanner({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="mb-8 border border-[#bbbbbb] bg-[#fafafa] px-5 py-4">
+      <p className="text-sm font-medium text-[#111111]">{title}</p>
+      <p className="mt-1 text-sm text-[#111111]/55">{subtitle}</p>
     </div>
   );
 }
@@ -227,6 +231,9 @@ function DashboardContent() {
   const [assetDetail, setAssetDetail] = useState<AssetDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [refreshQuota, setRefreshQuota] = useState<MarketData["refreshQuota"]>(undefined);
+  const [analysisReused, setAnalysisReused] = useState(false);
+  const loadInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!data?.lastUpdated) {
@@ -255,46 +262,139 @@ function DashboardContent() {
     localStorage.setItem(LEARNING_MODE_KEY, String(enabled));
   }
 
-  const loadAnalysis = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
-
+  const fetchRefreshQuota = useCallback(async (accessToken: string) => {
     try {
-      const res = await fetch("/api/market-analysis", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const res = await fetch("/api/market-analysis?quota=1", {
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
+      if (!res.ok) return;
+      const json = (await res.json()) as { refreshQuota?: MarketData["refreshQuota"] };
+      if (json.refreshQuota) {
+        setRefreshQuota(json.refreshQuota);
+      }
+    } catch {
+      // quota is non-critical
+    }
+  }, []);
 
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-          redirect?: string;
-        } | null;
+  const loadAnalysis = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (loadInFlightRef.current && !options?.force) return;
 
-        if (res.status === 403 && body?.redirect) {
-          router.replace(body.redirect);
-          return;
-        }
-
-        throw new Error(body?.error ?? t.dashboard.errors.loadFailed);
+      loadInFlightRef.current = true;
+      setLoading(true);
+      if (options?.force) {
+        setError(null);
       }
 
-      const json = (await res.json()) as MarketData;
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.dashboard.errors.unexpected);
-    } finally {
-      setLoading(false);
-    }
-  }, [router, t.dashboard.errors.loadFailed, t.dashboard.errors.unexpected]);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        loadInFlightRef.current = false;
+        router.replace("/login");
+        return;
+      }
+
+      const activeUserId = userId ?? session.user.id;
+
+      if (!options?.force && isClientCacheFresh(activeUserId)) {
+        const cached = getClientMarketCache(activeUserId);
+        if (cached) {
+          setData(cached as MarketData);
+          if (cached.refreshQuota) {
+            setRefreshQuota(cached.refreshQuota);
+          } else {
+            void fetchRefreshQuota(session.access_token);
+          }
+          setLoading(false);
+          loadInFlightRef.current = false;
+          return;
+        }
+      }
+
+      if (!options?.force) {
+        const cached = getClientMarketCache(activeUserId);
+        if (cached) {
+          setData(cached as MarketData);
+          if (cached.refreshQuota) {
+            setRefreshQuota(cached.refreshQuota);
+          }
+        }
+      }
+
+      const url = options?.force
+        ? "/api/market-analysis?force=1"
+        : "/api/market-analysis";
+
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as {
+            error?: string;
+            redirect?: string;
+            refreshQuota?: MarketData["refreshQuota"];
+          } | null;
+
+          if (res.status === 403 && body?.redirect) {
+            router.replace(body.redirect);
+            return;
+          }
+
+          if (body?.refreshQuota) {
+            setRefreshQuota(body.refreshQuota);
+          }
+
+          if (res.status === 429) {
+            if (body?.refreshQuota?.remaining === 0) {
+              const hours = Math.max(
+                1,
+                Math.ceil((body.refreshQuota.retryAfter ?? 3600) / 3600),
+              );
+              throw new Error(
+                t.dashboard.dailyRefreshLimited
+                  .replace("{limit}", String(body.refreshQuota.limit))
+                  .replace("{hours}", String(hours)),
+              );
+            }
+
+            const retryAfter = res.headers.get("Retry-After") ?? "60";
+            throw new Error(
+              t.dashboard.rateLimited.replace("{seconds}", retryAfter),
+            );
+          }
+
+          throw new Error(body?.error ?? t.dashboard.errors.loadFailed);
+        }
+
+        const json = (await res.json()) as MarketData;
+        setData(json);
+        if (json.refreshQuota) {
+          setRefreshQuota(json.refreshQuota);
+        }
+        setAnalysisReused(json.analysisReused === true);
+        setClientMarketCache(activeUserId, json);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t.dashboard.errors.unexpected);
+      } finally {
+        loadInFlightRef.current = false;
+        setLoading(false);
+      }
+    },
+    [
+      router,
+      userId,
+      fetchRefreshQuota,
+      t.dashboard.errors.loadFailed,
+      t.dashboard.errors.unexpected,
+      t.dashboard.rateLimited,
+      t.dashboard.dailyRefreshLimited,
+    ],
+  );
 
   useEffect(() => {
     async function init() {
@@ -353,7 +453,7 @@ function DashboardContent() {
   }
 
   const analysis = data?.analysis ?? null;
-  const analysisLoading = loading;
+  const analysisLoading = loading && !analysis;
   const marketLoading = loading && !data;
   const sourceErrors = data?.sourceErrors ?? [];
 
@@ -468,8 +568,8 @@ function DashboardContent() {
 
   return (
     <div className="flex min-h-screen flex-col text-[#111111] md:flex-row">
-      <DashboardSidebar compact onSignOut={handleSignOut} email={email} />
-      <DashboardSidebar onSignOut={handleSignOut} email={email} />
+      <DashboardSidebar compact onSignOut={handleSignOut} email={email} active="home" />
+      <DashboardSidebar onSignOut={handleSignOut} email={email} active="home" />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-6 sm:px-10 sm:py-6">
@@ -536,14 +636,28 @@ function DashboardContent() {
               >
                 {t.dashboard.editProfile}
               </Link>
-              <button
-                type="button"
-                onClick={loadAnalysis}
-                disabled={loading}
-                className="inline-flex w-full items-center justify-center bg-[#4B4B4B] px-5 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:opacity-40 sm:w-auto sm:px-6"
-              >
-                {loading ? t.dashboard.refreshing : t.dashboard.refresh}
-              </button>
+              <div className="flex w-full flex-col gap-1.5 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => loadAnalysis({ force: true })}
+                  disabled={
+                    loading ||
+                    (refreshQuota != null && refreshQuota.remaining <= 0)
+                  }
+                  className="inline-flex w-full items-center justify-center bg-[#4B4B4B] px-5 py-3 text-sm font-medium text-[#ffffff] transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6"
+                >
+                  {loading ? t.dashboard.refreshing : t.dashboard.refresh}
+                </button>
+                {refreshQuota && (
+                  <p className="text-center text-xs text-[#111111]/45 sm:text-right">
+                    {refreshQuota.remaining > 0
+                      ? t.dashboard.refreshQuota
+                          .replace("{remaining}", String(refreshQuota.remaining))
+                          .replace("{limit}", String(refreshQuota.limit))
+                      : t.dashboard.refreshQuotaNone}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -551,12 +665,34 @@ function DashboardContent() {
             <div className="border border-[#d93636]/20 bg-[#d93636]/5 p-6 text-sm text-[#d93636]">
               {error}
             </div>
-          ) : marketLoading ? (
-            <DashboardPageSkeleton />
+          ) : loading && !data ? (
+            <>
+              <LoadingBanner
+                title={t.dashboard.analyzingMarkets}
+                subtitle={t.dashboard.loadingEta}
+              />
+              <DashboardPageSkeleton />
+            </>
           ) : (
             <>
+              {error && (
+                <div className="mb-6 border border-[#d93636]/20 bg-[#d93636]/5 p-4 text-sm text-[#d93636]">
+                  {error}
+                </div>
+              )}
+              {loading ? (
+                <LoadingBanner
+                  title={t.dashboard.analyzingMarkets}
+                  subtitle={t.dashboard.loadingEta}
+                />
+              ) : null}
               {sourceErrorMessage && (
                 <SourceErrorBanner message={sourceErrorMessage} />
+              )}
+              {analysisReused && (
+                <div className="mb-6 border border-[#bbbbbb]/60 bg-[#f7f7f7] p-4 text-sm text-[#111111]/70">
+                  {t.dashboard.analysisReused}
+                </div>
               )}
 
               {error && (
@@ -564,9 +700,15 @@ function DashboardContent() {
                   {error}
                 </div>
               )}
-              <HeadlineSection
-                headline={analysis?.headline ?? null}
+
+              <ExpandableAnalysis
+                analysis={analysis}
                 loading={analysisLoading}
+                unavailableLabel={t.dashboard.analysisUnavailable}
+                sectionLabels={t.dashboard.expandableSections}
+                learningMode={learningMode}
+                experienceLevel={profile?.experience_level ?? null}
+                locale={locale}
               />
 
               <DashboardTabs
@@ -688,18 +830,10 @@ function DashboardContent() {
                 </AssetGrid>
               )}
 
-              <ThreeLayersAnalysis
-                analysis={analysis}
-                loading={analysisLoading}
-                unavailableLabel={t.dashboard.analysisUnavailable}
-                actionInsightLabel={t.dashboard.actionInsight}
-                narrativeLabel={t.dashboard.narrativeTitle}
-                layerLabels={t.dashboard.layers}
-                learningMode={learningMode}
-                experienceLevel={profile?.experience_level ?? null}
-              />
             </>
           )}
+
+          <LegalFooter />
         </main>
       </div>
 

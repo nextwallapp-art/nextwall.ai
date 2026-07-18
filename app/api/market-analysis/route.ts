@@ -1,7 +1,26 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { buildFallbackAnalysis } from "@/lib/buildFallbackAnalysis";
+import { buildGeoHotspots, type GeoHotspot } from "@/lib/geoHotspots";
+import {
+  buildMarketCacheKey,
+  getMarketResponseCache,
+  setMarketResponseCache,
+} from "@/lib/marketResponseCache";
+import {
+  buildDailyAnalysisCacheKey,
+  getDailyAnalysisCache,
+  setDailyAnalysisCache,
+} from "@/lib/dailyAnalysisCache";
+import {
+  checkRateLimit,
+  getClaudeAnalysisStatus,
+  getDailyRefreshStatus,
+  tryConsumeClaudeAnalysis,
+  tryConsumeDailyRefresh,
+} from "@/lib/rateLimit";
+import { compactAnalysisContext } from "@/lib/truncatePromptText";
 import { getStripe } from "@/lib/stripe";
 import {
   hasActiveSubscription,
@@ -15,7 +34,8 @@ import {
 } from "@/lib/marketAnalysisPrompt";
 import { fetchAnalystConsensus } from "@/lib/marketData/analystConsensus";
 import { fetchFedCalendarEvents } from "@/lib/marketData/fedCalendar";
-import { fetchGdeltEvents, formatGdeltEvents } from "@/lib/marketData/gdelt";
+import { fetchGdeltEventsCached } from "@/lib/gdeltCache";
+import { formatGdeltEvents, type GdeltEvent } from "@/lib/marketData/gdelt";
 import {
   fetchOnChainMetrics,
   formatOnChainMetrics,
@@ -468,6 +488,30 @@ function formatFredTwelveMonthComparison(histories: FredSeriesHistory[]): string
   return lines.join("\n").trim();
 }
 
+function formatFredTwelveMonthComparisonCompact(
+  histories: FredSeriesHistory[],
+): string {
+  if (histories.length === 0) {
+    return "Datos históricos FRED no disponibles.";
+  }
+
+  return histories
+    .map((series) => {
+      if (series.observations.length === 0) {
+        return `${series.name}: sin datos 12m`;
+      }
+      const first = series.observations[0];
+      const last = series.observations[series.observations.length - 1];
+      const delta = last.value - first.value;
+      const deltaLabel =
+        series.unit === "%"
+          ? `${delta > 0 ? "+" : ""}${delta.toFixed(2)} pp`
+          : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`;
+      return `${series.name}: ${formatUnit(first.value, series.unit)} (${first.date}) → ${formatUnit(last.value, series.unit)} (${last.date}), Δ ${deltaLabel}`;
+    })
+    .join("\n");
+}
+
 async function fetchMacro(
   apiKey: string | undefined,
 ): Promise<SourceFetchResult<Macro[]>> {
@@ -641,7 +685,7 @@ async function compileAnalysisContext(
   finnhubKey: string | undefined,
   coingeckoKey: string | undefined,
   cryptoList: { id: string; symbol: string; name: string }[],
-): Promise<AnalysisContext> {
+): Promise<{ context: AnalysisContext; gdeltEvents: GdeltEvent[] }> {
   const assetNames = formatSelectedAssetNames(profile);
   const gdeltNames =
     assetNames.length > 0
@@ -665,7 +709,7 @@ async function compileAnalysisContext(
     fedCalendar,
     analystConsensus,
   ] = await Promise.all([
-    fetchGdeltEvents(gdeltNames),
+    fetchGdeltEventsCached(gdeltNames),
     fetchTechnicalAnalysis(finnhubKey, technicalInput),
     fetchOnChainMetrics(coingeckoKey, cryptoList),
     fetchFedCalendarEvents(
@@ -683,14 +727,25 @@ async function compileAnalysisContext(
   ]);
 
   return {
-    gdelt_events_formatted: formatGdeltEvents(gdeltEvents),
-    fed_calendar_events: fedCalendar,
-    asset_prices_today: formatAssetPricesToday(stocks, crypto, macro),
-    technical_analysis: formatTechnicalAnalysis(technical),
-    onchain_metrics: formatOnChainMetrics(onchain),
-    historical_context_12m: formatFredTwelveMonthComparison(fredHistory),
-    analyst_consensus: analystConsensus,
+    context: {
+      gdelt_events_formatted: formatGdeltEvents(gdeltEvents.slice(0, 3)),
+      fed_calendar_events: truncatePromptField(fedCalendar, 700),
+      asset_prices_today: formatAssetPricesToday(stocks, crypto, macro),
+      technical_analysis: formatTechnicalAnalysis(technical),
+      onchain_metrics: formatOnChainMetrics(onchain),
+      historical_context_12m: formatFredTwelveMonthComparisonCompact(fredHistory),
+      analyst_consensus: truncatePromptField(analystConsensus, 700),
+    },
+    gdeltEvents,
   };
+}
+
+function truncatePromptField(text: string, maxChars: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  const slice = trimmed.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${(lastSpace > maxChars * 0.7 ? slice.slice(0, lastSpace) : slice).trim()}…`;
 }
 
 function deriveUserName(
@@ -731,13 +786,14 @@ async function fetchStructuredAnalysis(
   const investmentTimeline = deriveInvestmentTimeline(profile);
 
   const client = new Anthropic({ apiKey });
+  const compactCtx = compactAnalysisContext(ctx);
   const system = buildClaudeSystemPrompt(
     userName,
     experienceLevel,
     selectedAssets,
     freeText,
     investmentTimeline,
-    ctx,
+    compactCtx,
   );
   let lastError: unknown;
 
@@ -749,10 +805,17 @@ async function fetchStructuredAnalysis(
 
       const message = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 8192,
+        max_tokens: 4096,
         system,
         messages: [{ role: "user", content: "Devuelve el JSON." }],
       });
+
+      if (message.stop_reason === "max_tokens" && attempt === 0) {
+        console.warn(
+          "[market-analysis] Claude response truncated (max_tokens) — retrying",
+        );
+        continue;
+      }
 
       const text = message.content
         .filter((block): block is Anthropic.TextBlock => block.type === "text")
@@ -806,6 +869,9 @@ function isUsMarketOpen(): boolean {
 export async function GET(request: Request) {
   console.log("[market-analysis] GET request received");
 
+  const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.get("force") === "1";
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   const finnhubKey = process.env.FINNHUB_API_KEY?.trim();
@@ -852,7 +918,47 @@ export async function GET(request: Request) {
 
     console.log("[market-analysis] Authenticated user:", user.id);
 
-    const rateLimit = checkRateLimit(user.id);
+    const quotaOnly = searchParams.get("quota") === "1";
+    if (quotaOnly) {
+      return NextResponse.json({ refreshQuota: getDailyRefreshStatus(user.id) });
+    }
+
+    const profile = await fetchUserProfile(user.id);
+    const cacheKey = buildMarketCacheKey(user.id, profile);
+
+    if (forceRefresh) {
+      const refresh = tryConsumeDailyRefresh(user.id);
+      if (!refresh.ok) {
+        return NextResponse.json(
+          {
+            error: "Has alcanzado el límite diario de actualizaciones",
+            refreshQuota: {
+              used: refresh.used,
+              limit: refresh.limit,
+              remaining: refresh.remaining,
+              retryAfter: refresh.retryAfter,
+            },
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(refresh.retryAfter) },
+          },
+        );
+      }
+    }
+
+    if (!forceRefresh) {
+      const cached = getMarketResponseCache<Record<string, unknown>>(cacheKey);
+      if (cached) {
+        console.log("[market-analysis] Returning cached response");
+        return NextResponse.json({
+          ...cached,
+          refreshQuota: getDailyRefreshStatus(user.id),
+        });
+      }
+    }
+
+    const rateLimit = checkRateLimit(user.id, 20, 60 * 60 * 1000);
     if (!rateLimit.ok) {
       return NextResponse.json(
         { error: "Demasiadas peticiones, espera un momento" },
@@ -896,9 +1002,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch user profile, macro snapshot, and 12-month FRED history in parallel
-    const [profile, macroResult, fredHistory] = await Promise.all([
-      fetchUserProfile(user.id),
+    // Fetch macro snapshot and 12-month FRED history in parallel (profile already loaded)
+    const [macroResult, fredHistory] = await Promise.all([
       fetchMacro(fredKey),
       fetchFredTwelveMonthHistory(fredKey),
     ]);
@@ -955,29 +1060,125 @@ export async function GET(request: Request) {
         user.user_metadata as Record<string, unknown> | undefined,
       );
 
-      console.log("[market-analysis] Compiling 7-layer analysis context…");
-      const analysisContext = await compileAnalysisContext(
+      const dailyAnalysisKey = buildDailyAnalysisCacheKey(user.id, profile);
+      const cachedAnalysis =
+        getDailyAnalysisCache(dailyAnalysisKey) ??
+        getMarketResponseCache<{ analysis?: StructuredAnalysis }>(cacheKey)
+          ?.analysis ??
+        null;
+      const claudeStatus = getClaudeAnalysisStatus(user.id);
+
+      let analysis: StructuredAnalysis;
+      let gdeltEvents: GdeltEvent[];
+      let analysisReused = false;
+
+      if (claudeStatus.ok) {
+        console.log("[market-analysis] Compiling analysis context for Claude…");
+        const compiled = await compileAnalysisContext(
+          profile,
+          stocks,
+          crypto,
+          macro,
+          fredHistory,
+          finnhubKey,
+          coingeckoKey,
+          cryptoToFetch,
+        );
+        gdeltEvents = compiled.gdeltEvents;
+
+        const consumed = tryConsumeClaudeAnalysis(user.id);
+        if (!consumed.ok) {
+          analysis = cachedAnalysis ?? buildFallbackAnalysis(userName, compiled.context);
+          analysisReused = !!cachedAnalysis;
+        } else {
+          try {
+            analysis = await fetchStructuredAnalysis(
+              userName,
+              profile,
+              compiled.context,
+              anthropicKey,
+            );
+            setDailyAnalysisCache(dailyAnalysisKey, analysis);
+          } catch (claudeError) {
+            console.error(
+              "[market-analysis] Claude failed, using cached/fallback:",
+              claudeError,
+            );
+            analysis =
+              cachedAnalysis ?? buildFallbackAnalysis(userName, compiled.context);
+            analysisReused = !!cachedAnalysis;
+          }
+        }
+      } else if (cachedAnalysis) {
+        console.log(
+          "[market-analysis] Reusing daily analysis — refreshing prices only",
+        );
+        const assetNames = formatSelectedAssetNames(profile);
+        gdeltEvents = await fetchGdeltEventsCached(
+          assetNames.length > 0
+            ? assetNames
+            : [...stocks.map((s) => s.name), ...crypto.map((c) => c.name)],
+        );
+        analysis = cachedAnalysis;
+        analysisReused = true;
+      } else {
+        console.log("[market-analysis] Compiling context for fallback analysis…");
+        const compiled = await compileAnalysisContext(
+          profile,
+          stocks,
+          crypto,
+          macro,
+          fredHistory,
+          finnhubKey,
+          coingeckoKey,
+          cryptoToFetch,
+        );
+        gdeltEvents = compiled.gdeltEvents;
+        analysis = buildFallbackAnalysis(userName, compiled.context);
+      }
+
+      const geoHotspots: GeoHotspot[] = buildGeoHotspots(
+        gdeltEvents,
         profile,
-        stocks,
-        crypto,
-        macro,
-        fredHistory,
-        finnhubKey,
-        coingeckoKey,
-        cryptoToFetch,
+        analysis,
       );
 
-      const analysis = await fetchStructuredAnalysis(
-        userName,
-        profile,
-        analysisContext,
-        anthropicKey,
-      );
-
-      return NextResponse.json({ ...marketPayload, analysis });
+      const response = {
+        ...marketPayload,
+        analysis,
+        geoHotspots,
+        analysisReused,
+        refreshQuota: getDailyRefreshStatus(user.id),
+        claudeQuota: getClaudeAnalysisStatus(user.id),
+      };
+      setMarketResponseCache(cacheKey, response);
+      return NextResponse.json(response);
     } catch (analysisError) {
       console.error("[market-analysis] Analysis generation failed:", analysisError);
-      return NextResponse.json({ ...marketPayload, analysis: null });
+      const analysis = buildFallbackAnalysis(
+        deriveUserName(
+          user.email ?? undefined,
+          user.user_metadata as Record<string, unknown> | undefined,
+        ),
+        {
+          gdelt_events_formatted: "",
+          fed_calendar_events: "",
+          asset_prices_today: "",
+          technical_analysis: "",
+          onchain_metrics: "",
+          historical_context_12m: "",
+          analyst_consensus: "",
+        },
+      );
+      const geoHotspots = buildGeoHotspots([], profile, analysis);
+      const response = {
+        ...marketPayload,
+        analysis,
+        geoHotspots,
+        refreshQuota: getDailyRefreshStatus(user.id),
+      };
+      setMarketResponseCache(cacheKey, response);
+      return NextResponse.json(response);
     }
   } catch (error) {
     console.error("[market-analysis] Unhandled error:", error);
